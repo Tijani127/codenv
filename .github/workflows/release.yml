@@ -62,7 +62,8 @@ jobs:
           $stage = "stage"
           Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item codenv.exe "$stage\"
+          Rename-Item codenv.exe "codenv-${{ matrix.arch }}.exe"
+          Copy-Item "codenv-${{ matrix.arch }}.exe" "$stage\codenv.exe"
           Copy-Item LICENSE README.md "$stage\"
           # codenv manages PATH per shell rather than per machine, so there is
           # no installer and nothing to register.

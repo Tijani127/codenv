@@ -64,7 +64,7 @@ jobs:
         env:
           GOOS: ${{ matrix.os }}
           GOARCH: ${{ matrix.arch }}
-        run: go build -trimpath -o codenv-${{ matrix.os }}-${{ matrix.arch }} .
+        run: go build -trimpath -o codenv.exe .
 
       - name: Self check
         if: matrix.arch == 'amd64'
@@ -72,13 +72,13 @@ jobs:
         # least start, report its version, and not touch the system PATH.
         run: |
           $before = [Environment]::GetEnvironmentVariable('PATH', 'User')
-          ./codenv-windows-amd64.exe version
-          ./codenv-windows-amd64.exe --help | Out-Null
+          .\codenv.exe version
+          .\codenv.exe --help | Out-Null
           $after = [Environment]::GetEnvironmentVariable('PATH', 'User')
           if ($before -cne $after) { throw 'codenv modified the user PATH' }
 
       - uses: actions/upload-artifact@v4
         with:
           name: codenv-${{ matrix.os }}-${{ matrix.arch }}
-          path: codenv-${{ matrix.os }}-${{ matrix.arch }}.exe
+          path: codenv.exe
           if-no-files-found: error
