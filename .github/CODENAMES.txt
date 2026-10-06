@@ -1,9 +1,39 @@
 # Release codenames, one per line: TAG=Code Name
 #
-# codenv releases are named after Canadian provinces and territories.
-# v1.0 is Saskatchewan; v1.1 will be Manitoba.
+# codenv names releases after Canadian provinces and territories.
+#
+#   The MAJOR version is the province.
+#     v1.x  Saskatchewan
+#     v2.x  Manitoba
+#     v3.x  Alberta
+#     v4.x  British Columbia
+#
+#   The MINOR version is a place within that province. v1.0 is the province
+#   as a whole, and each minor release names somewhere inside it.
+#     v1.1  Regina        v2.1  Churchill
+#     v1.2  Fort Quapelle v2.2  Winnipeg
+#     v1.3  Moose Jaw     v2.3  Brandon
+#     v1.4  Saskatoon
 #
 # The release workflow reads this file so a codename can never be inherited by
 # accident from a previous release: an unlisted tag simply has no codename.
+# Reorder or rename entries freely; only the tag has to match.
+
+# Saskatchewan
 v1.0=Saskatchewan
-v1.1=Manitoba
+v1.1=Regina
+v1.2=Fort Quapelle
+v1.3=Moose Jaw
+v1.4=Saskatoon
+
+# Manitoba
+v2.0=Manitoba
+v2.1=Churchill
+v2.2=Winnipeg
+v2.3=Brandon
+
+# Alberta
+v3.0=Alberta
+
+# British Columbia
+v4.0=British Columbia

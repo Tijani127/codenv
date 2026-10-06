@@ -2,7 +2,9 @@
 
 All notable changes to codenv are recorded here.
 
-Release codenames are Canadian provinces and territories. The map lives in
+Release codenames are Canadian provinces and territories: the major version is
+the province, and each minor version names a place inside it (v1.0 Saskatchewan,
+v1.1 Regina, v2.0 Manitoba, v2.2 Winnipeg). The map lives in
 [.github/CODENAMES.txt](.github/CODENAMES.txt); the release workflow reads it,
 so a tag that is not listed ships without a codename.
 

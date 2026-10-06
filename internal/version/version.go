@@ -7,10 +7,12 @@ var (
 	Codename = ""
 )
 
-// v1.0 is Saskatchewan. Codenames are Canadian provinces and territories in
-// alphabetical order; see .github/CODENAMES.txt for the map the release
-// workflow reads. These defaults only matter for a local `go build`: released
-// binaries get Version, Commit, Date and Codename injected via -ldflags.
+// Releases are named after Canadian provinces and territories: the major
+// version is the province, and each minor version names a place inside it
+// (v1.0 Saskatchewan, v1.1 Regina, v2.0 Manitoba, v2.2 Winnipeg). See
+// .github/CODENAMES.txt for the map the release workflow reads. These defaults
+// only matter for a local `go build`: released binaries get Version, Commit,
+// Date and Codename injected via -ldflags.
 
 func String() string {
 	return Version
