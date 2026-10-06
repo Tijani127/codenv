@@ -1,0 +1,12 @@
+# The local codenv store. Commit codenv.json and codenv.lock.json instead.
+.codenv/
+
+# Build output
+bin/
+*.exe
+*.test
+*.out
+
+# Local environment files
+.env
+.env.local

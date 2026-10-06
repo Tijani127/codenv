@@ -1,0 +1,132 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and attach to (e.g. v0.1.0)'
+        required: true
+        default: v0.1.0
+
+# Only the release job needs to write; give it an explicit token.
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows
+            arch: amd64
+            asset: codenv-windows-x64.zip
+          - name: Windows arm64
+            os: windows
+            arch: arm64
+            asset: codenv-windows-arm64.zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          TAG: ${{ github.event_name == 'workflow_dispatch'
+                    && inputs.tag || github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          BUILD_DATE: ${{ github.event.repository.updated_at }}
+        run: |
+          go build -trimpath `
+            -ldflags "-s -w -X github.com/Tijani127/codenv/internal/version.Version=$env:TAG -X github.com/Tijani127/codenv/internal/version.Commit=$env:COMMIT -X github.com/Tijani127/codenv/internal/version.Date=$env:BUILD_DATE" `
+            -o codenv.exe .
+          .\codenv.exe version
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $stage = "stage"
+          Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item codenv.exe "$stage\"
+          Copy-Item LICENSE README.md "$stage\"
+          # codenv manages PATH per shell rather than per machine, so there is
+          # no installer and nothing to register.
+          @'
+          # codenv
+
+          This is a portable binary. Put it anywhere on your PATH.
+
+              codenv init          create codenv.json
+              codenv add <pkg>     add a package
+              codenv install       install what codenv.json pins
+              codenv shell         enter the environment
+
+          Requirements: Windows, PowerShell, and git (used to clone Scoop's buckets).
+          '@ | Set-Content "$stage\RUN.txt"
+          7z a -tzip "${{ matrix.asset }}" "$stage\*"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create release and attach assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ github.event_name == 'workflow_dispatch'
+                    && inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          ls -la dist
+          notes="$(mktemp)"
+          {
+            echo "## Downloads"
+            echo
+            echo "| Platform | Asset |"
+            echo "| --- | --- |"
+            echo "| Windows x64 | \`codenv-windows-x64.zip\` |"
+            echo "| Windows arm64 | \`codenv-windows-arm64.zip\` |"
+            echo
+            echo "No installer: unzip, then run \`codenv\`. It is a single self-contained binary."
+            echo
+            echo "codenv is Windows-only by design: it is backed by Scoop and relies on Windows"
+            echo "PATH semantics. It requires PowerShell and git."
+            echo
+            echo "Check your setup at any time with \`codenv doctor\`."
+          } > "$notes"
+          # This job has no checkout, so name the repository explicitly rather
+          # than letting gh infer it from git.
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$REPO"
+          else
+            gh release create "$TAG" dist/* --repo "$REPO" \
+              --title "$TAG" --notes-file "$notes"
+          fi
+          gh release view "$TAG" --repo "$REPO"

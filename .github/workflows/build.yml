@@ -1,0 +1,84 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: gofmt
+        shell: pwsh
+        run: |
+          $unformatted = gofmt -l .
+          if ($unformatted) {
+            Write-Output "These files are not gofmt clean:"
+            $unformatted | ForEach-Object { Write-Output "  $_" }
+            exit 1
+          }
+
+  cross-compile:
+    name: ${{ matrix.name }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            os: windows
+            arch: amd64
+          - name: Windows arm64
+            os: windows
+            arch: arm64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+        run: go build -trimpath -o codenv-${{ matrix.os }}-${{ matrix.arch }} .
+
+      - name: Self check
+        if: matrix.arch == 'amd64'
+        # A Windows binary cannot install Scoop packages here, but it must at
+        # least start, report its version, and not touch the system PATH.
+        run: |
+          $before = [Environment]::GetEnvironmentVariable('PATH', 'User')
+          ./codenv-windows-amd64.exe version
+          ./codenv-windows-amd64.exe --help | Out-Null
+          $after = [Environment]::GetEnvironmentVariable('PATH', 'User')
+          if ($before -cne $after) { throw 'codenv modified the user PATH' }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: codenv-${{ matrix.os }}-${{ matrix.arch }}
+          path: codenv-${{ matrix.os }}-${{ matrix.arch }}.exe
+          if-no-files-found: error

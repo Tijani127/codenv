@@ -1,0 +1,6 @@
+# The local codenv store. Commit codenv.json and codenv.lock.json instead.
+.codenv/
+
+# Local environment files
+.env
+.env.local

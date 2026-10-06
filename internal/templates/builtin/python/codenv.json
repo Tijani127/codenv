@@ -1,0 +1,17 @@
+{
+  "packages": [
+    "versions/python313",
+    "ripgrep"
+  ],
+  "env": {
+    "PROJECT_NAME": "{{PROJECT}}"
+  },
+  "shell": {
+    "scripts": {
+      "venv": "python -m venv .venv",
+      "activate": "Write-Output 'run .venv/Activate.ps1 (bash: source .venv/bin/activate) inside the shell'",
+      "test": "python -m pytest -q",
+      "lint": "python -m ruff check ."
+    }
+  }
+}

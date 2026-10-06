@@ -1,0 +1,13 @@
+{
+  "packages": [
+    "ripgrep"
+  ],
+  "env": {
+    "PROJECT_NAME": "{{PROJECT}}"
+  },
+  "shell": {
+    "scripts": {
+      "hello": "Write-Output \"hello from {{PROJECT}}\""
+    }
+  }
+}

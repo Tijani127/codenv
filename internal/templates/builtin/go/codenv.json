@@ -1,0 +1,19 @@
+{
+  "packages": [
+    "go",
+    "ripgrep"
+  ],
+  "env": {
+    "PROJECT_NAME": "{{PROJECT}}"
+  },
+  "shell": {
+    "scripts": {
+      "build": "go build -o bin/{{PROJECT}}.exe .",
+      "run": "go run .",
+      "test": "go test ./...",
+      "vet": "go vet ./...",
+      "fmt": "gofmt -w .",
+      "check": "codenv run vet; if ($LASTEXITCODE -eq 0) { codenv run test } else { exit $LASTEXITCODE }"
+    }
+  }
+}
