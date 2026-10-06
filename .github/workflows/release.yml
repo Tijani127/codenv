@@ -69,7 +69,14 @@ jobs:
             $ldflags += " -X github.com/Tijani127/codenv/internal/version.Codename=$codename"
           }
           go build -trimpath -ldflags $ldflags -o codenv.exe .
-          .\codenv.exe version
+
+      # The Build step stays a pure build: an arm64 binary cannot run on the
+      # x64 Windows runner, so only the amd64 job verifies the output. The build
+      # workflow does this check for both architectures.
+      - name: Self check
+        if: matrix.arch == 'amd64'
+        shell: pwsh
+        run: .\codenv.exe version
 
       - name: Package
         shell: pwsh
@@ -77,9 +84,8 @@ jobs:
           $stage = "stage"
           Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Rename-Item codenv.exe "codenv-${{ matrix.arch }}.exe"
-          Copy-Item "codenv-${{ matrix.arch }}.exe" "$stage\codenv.exe"
-          Copy-Item LICENSE README.md "$stage\"
+          Copy-Item codenv.exe (Join-Path $stage 'codenv.exe')
+          Copy-Item LICENSE, README.md -Destination $stage
           # codenv manages PATH per shell rather than per machine, so there is
           # no installer and nothing to register.
           @'
@@ -93,7 +99,7 @@ jobs:
               codenv shell         enter the environment
 
           Requirements: Windows, PowerShell, and git (used to clone Scoop's buckets).
-          '@ | Set-Content "$stage\RUN.txt"
+          '@ | Set-Content (Join-Path $stage 'RUN.txt')
           7z a -tzip "${{ matrix.asset }}" "$stage\*"
 
       - uses: actions/upload-artifact@v4
