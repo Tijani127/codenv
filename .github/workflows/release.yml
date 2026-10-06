@@ -147,9 +147,11 @@ jobs:
           notes="$(mktemp)"
           {
             if [ -n "$codename" ]; then
-              echo "## $title"
+              # Braces are required: $codename_ would be read as a different
+              # variable name, because '_' is valid inside a shell variable.
+              echo "## ${title}"
               echo
-              echo "_codenv $TAG — $codename_"
+              echo "_codenv ${TAG} - ${codename}_"
               echo
             fi
             echo "## Downloads"
