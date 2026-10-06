@@ -154,6 +154,8 @@ jobs:
               echo "_codenv ${TAG} - ${codename}_"
               echo
             fi
+            # Pull the matching section out of CHANGELOG.md so the release
+            # notes and the changelog cannot drift apart.
             echo "## Downloads"
             echo
             echo "| Platform | Asset |"
@@ -168,6 +170,32 @@ jobs:
             echo
             echo "Check your setup at any time with \`codenv doctor\`."
           } > "$notes"
+
+          # Append the changelog entry for this tag, if CHANGELOG.md has one.
+          # A tag like v1.0 corresponds to a changelog heading of [1.0.0], so
+          # match the bracketed version and require a following dot or bracket.
+          # That keeps v1.0 from also matching a future [1.0.1] or [1.1].
+          if [ -f CHANGELOG.md ]; then
+            tagver="${TAG#v}"
+            section="$(awk -v want="$tagver" '
+              function esc(s) { gsub(/\./, "\\.", s); return s }
+              /^## \[?[0-9]/ {
+                inblock = ($0 ~ ("\\[" esc(want) "([.\\-]|\\])"))
+                next
+              }
+              inblock { print }
+            ' CHANGELOG.md)"
+            if [ -n "$section" ]; then
+              {
+                echo
+                echo "---"
+                echo
+                echo "## Changelog"
+                echo
+                printf '%s\n' "$section"
+              } >> "$notes"
+            fi
+          fi
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber --repo "$REPO"
           else

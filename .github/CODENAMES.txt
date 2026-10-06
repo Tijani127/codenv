@@ -1,8 +1,9 @@
 # Release codenames, one per line: TAG=Code Name
 #
-# codenv is named after Canadian provinces and territories, alphabetically.
-# v1.0 shipped Saskatchewan; the next release is St. Pierre and Miquelon.
+# codenv releases are named after Canadian provinces and territories.
+# v1.0 is Saskatchewan; v1.1 will be Manitoba.
 #
 # The release workflow reads this file so a codename can never be inherited by
 # accident from a previous release: an unlisted tag simply has no codename.
 v1.0=Saskatchewan
+v1.1=Manitoba

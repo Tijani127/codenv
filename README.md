@@ -99,7 +99,8 @@ Check your setup at any time with `codenv doctor`.
 
 ### Releases
 
-Releases are named after Canadian provinces and territories, alphabetically. v1.0 is **Saskatchewan**.
+Releases are named after Canadian provinces and territories. v1.0 is **Saskatchewan**, and v1.1 will be
+**Manitoba**.
 
 To cut a release: add the tag and codename to `.github/CODENAMES.txt`, commit, then push the tag. The
 release workflow reads that file, so a tag that is not listed simply ships without a codename.
