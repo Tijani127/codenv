@@ -131,12 +131,19 @@ jobs:
           set -euo pipefail
           ls -la dist
           # Same codename map the build step used, so the release title matches
-          # what the binary reports.
-          codename="$(grep -E "^[[:space:]]*${TAG}=" .github/CODENAMES.txt 2>/dev/null | head -1 | cut -d= -f2- | xargs || true)"
+          # what the binary reports. Matched on the exact tag, with no
+          # interpolation inside the pattern.
+          codename=""
+          if [ -f .github/CODENAMES.txt ]; then
+            codename=$(grep -F "$TAG=" .github/CODENAMES.txt 2>/dev/null \
+                      | grep -v '^[[:space:]]*#' \
+                      | head -n 1 | cut -d= -f2- | xargs) || codename=""
+          fi
           title="$TAG"
           if [ -n "$codename" ]; then
             title="$TAG $codename"
           fi
+          echo "title=$title"
           notes="$(mktemp)"
           {
             if [ -n "$codename" ]; then
