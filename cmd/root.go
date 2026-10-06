@@ -51,7 +51,7 @@ var rootCmd = &cobra.Command{
 }
 
 func versionString() string {
-	return version.Full()
+	return version.Display()
 }
 
 func Execute() int {

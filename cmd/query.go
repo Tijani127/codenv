@@ -264,7 +264,7 @@ var versionCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		applyGlobals()
-		ui.Println("codenv %s", version.Full())
+		ui.Println("codenv %s", version.Long())
 		if home, err := homeDir(); err == nil {
 			ui.Println("%s %s", ui.Paint(ui.Gray, "home:"), home)
 		}
@@ -281,7 +281,7 @@ var versionUpdateCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		applyGlobals()
-		ui.Println("codenv %s", version.Full())
+		ui.Println("codenv %s", version.Long())
 		ui.Info("codenv is distributed as a single static binary")
 		ui.Hint("rebuild or replace the binary, then run 'codenv version'")
 		return nil

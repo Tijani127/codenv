@@ -97,6 +97,13 @@ The binary is self-contained; drop it anywhere on your `PATH`. Windows x64 and a
 
 Check your setup at any time with `codenv doctor`.
 
+### Releases
+
+Releases are named after Canadian provinces and territories, alphabetically. v1.0 is **Saskatchewan**.
+
+To cut a release: add the tag and codename to `.github/CODENAMES.txt`, commit, then push the tag. The
+release workflow reads that file, so a tag that is not listed simply ships without a codename.
+
 ---
 
 ## Quick start

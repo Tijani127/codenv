@@ -51,9 +51,24 @@ jobs:
           COMMIT: ${{ github.sha }}
           BUILD_DATE: ${{ github.event.repository.updated_at }}
         run: |
-          go build -trimpath `
-            -ldflags "-s -w -X github.com/Tijani127/codenv/internal/version.Version=$env:TAG -X github.com/Tijani127/codenv/internal/version.Commit=$env:COMMIT -X github.com/Tijani127/codenv/internal/version.Date=$env:BUILD_DATE" `
-            -o codenv.exe .
+          # Read the codename from .github/CODENAMES.txt for this exact tag, so
+          # a tag that is not listed simply has no codename.
+          $codename = ''
+          $map = '.github\CODENAMES.txt'
+          if (Test-Path $map) {
+            $line = Get-Content $map | Where-Object {
+              $_ -match '^\s*v' -and ($_ -split '=')[0].Trim() -eq $env:TAG
+            } | Select-Object -First 1
+            if ($line) { $codename = ($line -split '=', 2)[1].Trim() }
+          }
+          $ldflags = "-s -w" +
+            " -X github.com/Tijani127/codenv/internal/version.Version=$env:TAG" +
+            " -X github.com/Tijani127/codenv/internal/version.Commit=$env:COMMIT" +
+            " -X github.com/Tijani127/codenv/internal/version.Date=$env:BUILD_DATE"
+          if ($codename) {
+            $ldflags += " -X github.com/Tijani127/codenv/internal/version.Codename=$codename"
+          }
+          go build -trimpath -ldflags $ldflags -o codenv.exe .
           .\codenv.exe version
 
       - name: Package
@@ -92,6 +107,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      # The codename map lives in the repo, so this job needs a checkout.
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -106,8 +124,21 @@ jobs:
         run: |
           set -euo pipefail
           ls -la dist
+          # Same codename map the build step used, so the release title matches
+          # what the binary reports.
+          codename="$(grep -E "^[[:space:]]*${TAG}=" .github/CODENAMES.txt 2>/dev/null | head -1 | cut -d= -f2- | xargs || true)"
+          title="$TAG"
+          if [ -n "$codename" ]; then
+            title="$TAG $codename"
+          fi
           notes="$(mktemp)"
           {
+            if [ -n "$codename" ]; then
+              echo "## $title"
+              echo
+              echo "_codenv $TAG — $codename_"
+              echo
+            fi
             echo "## Downloads"
             echo
             echo "| Platform | Asset |"
@@ -122,12 +153,10 @@ jobs:
             echo
             echo "Check your setup at any time with \`codenv doctor\`."
           } > "$notes"
-          # This job has no checkout, so name the repository explicitly rather
-          # than letting gh infer it from git.
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber --repo "$REPO"
           else
             gh release create "$TAG" dist/* --repo "$REPO" \
-              --title "$TAG" --notes-file "$notes"
+              --title "$title" --notes-file "$notes"
           fi
           gh release view "$TAG" --repo "$REPO"
