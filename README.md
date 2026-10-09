@@ -27,8 +27,10 @@ codenv shell
 - [Quick start](#quick-start)
 - [Configuration reference](#configuration-reference)
 - [Commands](#commands)
+- [Secrets](#secrets)
 - [Store modes and version pinning](#store-modes-and-version-pinning)
 - [What codenv guarantees](#what-codenv-guarantees)
+- [Troubleshooting](#troubleshooting)
 - [Differences from devbox](#differences-from-devbox)
 - [Environment variables](#environment-variables)
 - [How this was verified](#how-this-was-verified)
@@ -37,19 +39,18 @@ codenv shell
 
 ## Why shims are the wrong tool here
 
-Scoop makes every installed program reachable through a single directory of shims, and it adds that directory
-to your **persistent user `PATH`**. That is excellent for a general-purpose package manager and wrong for a
-reproducible dev environment:
+Scoop makes every program reachable through one global directory of shims, which it adds to your **persistent
+user `PATH`**. That is right for a general-purpose package manager and wrong for a reproducible environment:
 
-| Problem | codenv's answer |
+| Problem with shims | What codenv does instead |
 | --- | --- |
-| One global shim dir, so two projects cannot run different versions of the same tool | `PATH` points at the exact `apps/<name>/<version>` directory per project, and multiple versions coexist in the store |
-| The shim dir is permanently on your `PATH`, so it leaks into unrelated terminals | The shims directory is **deleted** after every install; your `PATH` is snapshotted and restored around every Scoop call |
-| GUI packages silently add Start Menu shortcuts | Shortcuts created during an install are removed again |
-| Installing upgrades the version every other project sees | Versions are pinned in `codenv.lock.json` and materialised per store |
+| One global shim dir, so two projects cannot run different versions of a tool | `PATH` points at the exact `apps/<pkg>/<version>` directory per project |
+| The shim dir sits permanently on your `PATH` and leaks into unrelated terminals | The shims directory is **deleted** after every install |
+| Installing writes to your `PATH` even when the install fails | Your `PATH` is snapshotted and restored around every Scoop call |
+| GUI packages silently add Start Menu shortcuts | Shortcuts created by an install are removed again |
 
-Concretely: `codenv` lets one project use 7-Zip **24.09** while another uses **26.03** at the same time,
-on the same machine, from one shared store, with no shims involved.
+So two projects can hold 7-Zip **24.09** and **26.03** at the same time, from one store, with no shims
+involved.
 
 ---
 
@@ -57,27 +58,27 @@ on the same machine, from one shared store, with no shims involved.
 
 ```
 %LOCALAPPDATA%\codenv\          CODEENV_HOME
-└── store\                      shared store (default)
-    ├── apps\<pkg>\<version>\   installed packages; `current` is a junction we never use
-    ├── buckets\<name>\         cloned Scoop buckets (main, extras, versions)
-    ├── cache\                  download cache
-    └── .codenv-index.json      harvested bin directories, per package@version
+├── store\                      shared store (default)
+│   ├── apps\<pkg>\<version>\   installed packages; `current` is a junction codenv never uses
+│   ├── buckets\<name>\         cloned Scoop buckets (main, extras, versions)
+│   ├── cache\                  download cache
+│   └── .codenv-index.json      harvested bin directories, per package@version
 └── global\store\               separate store for `codenv global`
 ```
 
 1. **Bootstrap.** On first use, `codenv` clones Scoop and the default buckets into the store using `git`.
-2. **Resolve.** Package specs (`ripgrep`, `ripgrep@14.1.1`, `extras/vcredist2022`) are resolved against the
+2. **Resolve.** Package specs (`ripgrep`, `7zip@24.09`, `extras/vcredist2022`) are resolved against the
    local bucket manifests and written to `codenv.lock.json` as exact versions.
 3. **Install.** `scoop install … -u` runs inside a wrapper that snapshots the persistent user `PATH`,
    `SCOOP_PATH` and `PSModulePath`, then restores them afterwards — even if Scoop fails.
-4. **Harvest, then delete.** Scoop writes shim files recording the *resolved* target of every binary.
-   `codenv` reads those files to learn exactly which directories a package contributes, stores them in
+4. **Harvest, then delete.** Scoop writes shim files recording the *resolved* target of every binary. `codenv`
+   reads those files to learn exactly which directories a package contributes, records them in
    `.codenv-index.json`, then **deletes the entire shims directory**.
-5. **Activate.** `codenv shell` builds `PATH` from the harvested directories (falling back to the manifest's
-   `bin` entries) and launches a child shell with that environment. Nothing is persisted.
+5. **Activate.** `codenv shell` builds `PATH` from those directories (falling back to the manifest's `bin`
+   entries) and launches a child shell with that environment. Nothing is persisted.
 
-Because `PATH` is built from concrete version directories, `codenv` never depends on the `current` junction
-that Scoop maintains.
+Because `PATH` is built from concrete version directories, `codenv` never depends on the `current` junction,
+so a background `scoop update` cannot change what an existing environment resolves to.
 
 ---
 
@@ -133,7 +134,7 @@ codenv add extras/vcredist2022  # name a bucket
 codenv shell                    # interactive shell, prompt marked with "codenv:"
 codenv run rg --version         # one-off command in the environment
 codenv shellenv | Out-String    # export the environment into an existing shell
-codenv shellenv --compact        # just a single PATH export, for a profile or CI
+codenv shellenv --compact       # just a single PATH export, for a profile or CI
 ```
 
 `codenv create` writes `codenv.json`, a `README.md` and a `.gitignore`, and pins the toolchain each
@@ -368,7 +369,7 @@ points you at `codenv install` instead.
 | Devbox plugins (jsonnet) | not implemented | Plugins describe Nix build setup; Scoop packages are prebuilt and need none. |
 | `devbox generate dockerfile` → Linux image | `codenv generate dockerfile` → **Windows** container image | Scoop cannot run in a Linux container. |
 | `devbox services` (process-compose) | `codenv services` (built-in supervisor) | No external process manager to install on Windows. Same config file shape. |
-| `devbox create <template>` | not implemented | devbox templates are Nix-flavoured. |
+| `devbox create <template>` (remote catalogue) | `codenv create <template>` (built-in) | Built-in templates ship with the binary; there is no remote template catalogue. |
 | `devbox add --platform / --exclude-platform` | not implemented | Only one platform exists. |
 
 Two structural notes about Scoop that shape the implementation:
@@ -384,33 +385,44 @@ Two structural notes about Scoop that shape the implementation:
 
 ## Environment variables
 
+Read by codenv:
+
 | Variable | Purpose |
 | --- | --- |
 | `CODEENV_HOME` | Override the codenv home directory (default `%LOCALAPPDATA%\codenv`) |
-| `CODEENV_SHELL` | Set to `1` inside a codenv environment |
+| `CODEENV_SHELL_BIN` | Force the shell `codenv shell` launches (PowerShell path, `bash`, `cmd`, ...) |
+| `CODEENV_SHELL_FORMAT` | Default format for `shellenv` output: `powershell`, `bash` or `cmd` |
+| `CODEENV_POWERSHELL` | PowerShell executable used to run Scoop internally |
+| `NO_COLOR`, `CODEENV_FORCE_COLOR` | Colour control |
+
+Set by codenv inside an environment:
+
+| Variable | Purpose |
+| --- | --- |
+| `CODEENV_SHELL` | `1` inside a codenv environment |
 | `CODEENV_PROJECT_DIR` | Absolute path of the active project |
-| `CODEENV_GLOBAL` | Set to `1` inside a `codenv global` environment |
+| `CODEENV_GLOBAL` | `1` inside a `codenv global` environment |
 | `CODEENV_STORE` | Store root backing the current environment |
 | `CODEENV_PATH_PREFIX` | The package directories `codenv` prepended to `PATH` |
-| `CODEENV_POWERSHELL` | Force a specific PowerShell executable |
-| `CODEENV_SHELL_BIN` | Force the shell `codenv shell` launches |
-| `CODEENV_SHELL_FORMAT` | Default format for `shellenv` output |
-| `NO_COLOR`, `CODEENV_FORCE_COLOR` | Colour control |
 
 ---
 
 ## How this was verified
 
 The shimless approach is not theoretical. It was validated end to end against real Scoop packages before being
-implemented, and the checks below are reproducible:
+implemented, and every claim on this page is reproducible:
 
 - After `codenv install`, the store has **no `shims` directory** at all.
 - `rg --version` inside `codenv shell` reports the version pinned in `codenv.lock.json`, not the version on the
   ambient system `PATH`.
 - The persistent user `PATH` is byte-identical before and after any `codenv` command, including failed ones.
-- `codenv --pure` reduces the environment from 96 variables to 36 while the packages still resolve.
+  The CI build asserts this on every run.
+- `codenv shell --pure` reduces the environment from 96 variables to 36 while the packages still resolve.
 - Two projects hold different versions of the same tool simultaneously (`7zip@24.09` and `7zip@26.03`).
-- Bucket repositories are left pristine (`git status` clean) after every install.
+- Bucket repositories are left pristine (`git status` clean) after every install, so Scoop's autoupdate can
+  never leak a downgrade between projects.
+- 46 tests cover the lockfile, package resolution, shim classification, secret resolution, template
+  rendering, `PATH` lookup and diagnostics. CI runs them on every push.
 
 ## License
 

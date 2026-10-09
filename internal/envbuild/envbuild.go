@@ -279,8 +279,15 @@ func sortedKeys(m map[string]string) []string {
 }
 
 func DetectFormat() Format {
-	if v := os.Getenv("CODENV_SHELL_FORMAT"); v != "" {
-		return Format(strings.ToLower(v))
+	if v := os.Getenv("CODEENV_SHELL_FORMAT"); v != "" {
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "powershell", "ps", "pwsh":
+			return FormatPowerShell
+		case "bash", "sh", "fish":
+			return FormatBash
+		case "cmd", "bat":
+			return FormatCmd
+		}
 	}
 	shell := strings.ToLower(os.Getenv("SHELL"))
 	if os.Getenv("MSYSTEM") != "" || strings.Contains(shell, "bash") || strings.Contains(shell, "zsh") {

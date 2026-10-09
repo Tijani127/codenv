@@ -13,7 +13,35 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- `codenv shellenv --compact` is advertised in `--help` but the flag was never
+  read, so it silently printed the full multi-line script. It now emits a
+  single `PATH` export for PowerShell, bash and cmd.
+- `CODEENV_SHELL_FORMAT` was documented but not implemented. It now selects the
+  `shellenv` format and falls back to auto-detection when the value is not
+  recognised.
+- `codenv rm --force` did nothing; `rm` already succeeds when a package is
+  absent, so the flag has been removed.
+- `LookPath` resolved relative paths against codenv's own working directory
+  instead of the project's, so `codenv shell .\bin\app.exe` failed. Relative
+  paths are now resolved against the project directory.
+- An in-place environment filter used by `--pure` compacted a slice without
+  shortening it, which leaked unrelated variables into the sanitised
+  environment.
+
+### Removed
+
+- Dead code with no callers: `engine.lastLines`, `project.RelOrSame`,
+  `ui.SetOutput`, `ui.SetColorEnabled`, `ui.KeyValue`, `ui.Rule`, and an
+  unused `flagAddOutputs` variable.
+
+### Documentation
+
+- Reworked the README: the shim rationale and the store internals no longer
+  overlap, the table of contents covers every section, the environment-variable
+  table is split into variables codenv reads versus the ones it sets, and the
+  devbox comparison no longer claims `devbox create` is unimplemented.
 
 ## [1.0.0] - 2026-10-06 - Saskatchewan
 

@@ -84,3 +84,42 @@ func TestUniqueDirsRejectsFiles(t *testing.T) {
 		t.Errorf("uniqueDirs = %v, want just the directory", got)
 	}
 }
+
+func TestDetectFormatHonoursEnvVar(t *testing.T) {
+	cases := map[string]Format{
+		"bash":       FormatBash,
+		"BASH":       FormatBash,
+		"sh":         FormatBash,
+		"powershell": FormatPowerShell,
+		"pwsh":       FormatPowerShell,
+		"ps":         FormatPowerShell,
+		"cmd":        FormatCmd,
+		"bat":        FormatCmd,
+	}
+	for value, want := range cases {
+		t.Setenv("CODEENV_SHELL_FORMAT", value)
+		if got := DetectFormat(); got != want {
+			t.Errorf("CODEENV_SHELL_FORMAT=%q -> %v, want %v", value, got, want)
+		}
+	}
+}
+
+func TestDetectFormatFallsBackForGarbage(t *testing.T) {
+	t.Setenv("CODEENV_SHELL_FORMAT", "nonsense")
+	t.Setenv("SHELL", "")
+	t.Setenv("MSYSTEM", "")
+	if got := DetectFormat(); got != FormatPowerShell {
+		t.Errorf("garbage value should fall back to powershell, got %v", got)
+	}
+}
+
+func TestParseFormatRejectsUnknown(t *testing.T) {
+	if _, err := ParseFormat("tcsh"); err == nil {
+		t.Error("expected an error for an unknown format")
+	}
+	for _, ok := range []string{"", "auto", "bash", "cmd", "powershell"} {
+		if _, err := ParseFormat(ok); err != nil {
+			t.Errorf("ParseFormat(%q) unexpected error: %v", ok, err)
+		}
+	}
+}
