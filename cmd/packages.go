@@ -159,7 +159,6 @@ var installCmd = &cobra.Command{
 
 var (
 	flagRmPurge bool
-	flagRmForce bool
 )
 
 var rmCmd = &cobra.Command{
@@ -412,7 +411,6 @@ func init() {
 	installCmd.Flags().BoolVar(&flagInstallNoSync, "no-sync", false, "do not git-pull buckets")
 	installCmd.Flags().BoolVar(&flagInstallGlobal, "global", false, "install the global configuration instead")
 	rmCmd.Flags().BoolVar(&flagRmPurge, "purge", false, "also remove packages from the store")
-	rmCmd.Flags().BoolVar(&flagRmForce, "force", false, "ignore a missing package")
 	updateCmd.Flags().BoolVar(&flagUpdateNoSync, "no-sync", false, "do not git-pull buckets")
 	updateCmd.Flags().BoolVar(&flagUpdateAll, "all", false, "re-resolve pinned versions as well")
 	listCmd.Flags().BoolVar(&flagListGlobal, "global", false, "list the global configuration")

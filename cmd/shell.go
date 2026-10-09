@@ -318,6 +318,10 @@ var shellenvCmd = &cobra.Command{
 			return err
 		}
 		env := sess.buildEnv(envbuild.Options{Format: format})
+		if shellenvFlags.compact {
+			ui.Println("%s", env.Compact(format))
+			return nil
+		}
 		ui.Print(env.Script(format))
 		return nil
 	},

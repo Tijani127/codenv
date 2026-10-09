@@ -133,6 +133,7 @@ codenv add extras/vcredist2022  # name a bucket
 codenv shell                    # interactive shell, prompt marked with "codenv:"
 codenv run rg --version         # one-off command in the environment
 codenv shellenv | Out-String    # export the environment into an existing shell
+codenv shellenv --compact        # just a single PATH export, for a profile or CI
 ```
 
 `codenv create` writes `codenv.json`, a `README.md` and a `.gitignore`, and pins the toolchain each
@@ -218,7 +219,7 @@ Services live in `codenv-services.json` (same shape as devbox's `devbox-services
 | `codenv list` | Show packages, versions and install status |
 | `codenv shell [cmd...]` | Interactive shell, or run one command inside the environment |
 | `codenv run <script\|cmd>` | Run a script from `codenv.json`, or any command |
-| `codenv shellenv` | Print shell code that applies the environment |
+| `codenv shellenv` | Print shell code that applies the environment; `--compact` emits a single `PATH` export |
 | `codenv search <query>` | Search the local buckets |
 | `codenv info <pkg>...` | Show a manifest: version, licence, dependencies, binaries |
 | `codenv global <sub>` | `add`, `rm`, `list`, `install`, `update`, `run`, `shellenv`, `pull`, `push`, `path` |

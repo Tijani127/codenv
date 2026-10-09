@@ -491,11 +491,3 @@ func dedupe(in []string) []string {
 	}
 	return out
 }
-
-func lastLines(s string, n int) string {
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	if len(lines) <= n {
-		return strings.Join(lines, " | ")
-	}
-	return strings.Join(lines[len(lines)-n:], " | ")
-}

@@ -316,6 +316,27 @@ func (e *Env) Script(format Format) string {
 	}
 }
 
+// Compact returns a single self-contained PATH export, with no preamble.
+// Useful in a profile or CI step where only the variable matters.
+func (e *Env) Compact(format Format) string {
+	full := e.Path()
+	switch format {
+	case FormatBash:
+		return `export PATH=` + shellQuoteOne(full)
+	case FormatCmd:
+		return "set \"PATH=" + full + "\""
+	default:
+		return "$env:PATH = " + quotePS(full)
+	}
+}
+
+func shellQuoteOne(s string) string {
+	if s == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
 func (e *Env) powershellScript() string {
 	var b strings.Builder
 	b.WriteString("$codenvDirs = @(" + quoteList(e.PathDirs, `"`) + ")\n")

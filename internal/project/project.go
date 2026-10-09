@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Tijani127/codenv/internal/config"
 	"github.com/Tijani127/codenv/internal/store"
@@ -207,12 +206,4 @@ func ResolveConfigDir(flagValue string) (string, error) {
 		return "", fmt.Errorf("no %s found in %s or any parent directory\nrun 'codenv init' to create one", config.FileName, cwd)
 	}
 	return dir, nil
-}
-
-func RelOrSame(base, target string) string {
-	rel, err := filepath.Rel(base, target)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return target
-	}
-	return rel
 }
