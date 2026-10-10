@@ -227,6 +227,7 @@ Services live in `codenv-services.json` (same shape as devbox's `devbox-services
 | `codenv services <sub>` | `up`, `start`, `stop`, `restart`, `ls`, `logs`, `clean` |
 | `codenv secrets <sub>` | `add`, `from`, `list`, `rm`, `download` — declare which variables are secret |
 | `codenv generate <target>` | `dockerfile`, `devcontainer`, `direnv`, `readme` |
+| `codenv import <format>` | `devbox` — convert a `devbox.json` into `codenv.json` |
 | `codenv cache <sub>` | `info`, `clean` |
 | `codenv completion <shell>` | `powershell`, `bash`, `zsh`, `fish` |
 | `codenv version` | Version and store information |
@@ -370,6 +371,7 @@ points you at `codenv install` instead.
 | `devbox generate dockerfile` → Linux image | `codenv generate dockerfile` → **Windows** container image | Scoop cannot run in a Linux container. |
 | `devbox services` (process-compose) | `codenv services` (built-in supervisor) | No external process manager to install on Windows. Same config file shape. |
 | `devbox create <template>` (remote catalogue) | `codenv create <template>` (built-in) | Built-in templates ship with the binary; there is no remote template catalogue. |
+| `devbox.json` written by hand | `codenv import devbox` converts one | Package names are mapped to their Scoop equivalents. Packages with no equivalent are reported and left out rather than replaced by a guess. |
 | `devbox add --platform / --exclude-platform` | not implemented | Only one platform exists. |
 
 Two structural notes about Scoop that shape the implementation:
@@ -421,8 +423,8 @@ implemented, and every claim on this page is reproducible:
 - Two projects hold different versions of the same tool simultaneously (`7zip@24.09` and `7zip@26.03`).
 - Bucket repositories are left pristine (`git status` clean) after every install, so Scoop's autoupdate can
   never leak a downgrade between projects.
-- 46 tests cover the lockfile, package resolution, shim classification, secret resolution, template
-  rendering, `PATH` lookup and diagnostics. CI runs them on every push.
+- 61 tests cover the lockfile, package resolution, secret resolution, template rendering, `PATH`
+  lookup, shell-output formats, and devbox import mapping. CI runs them on every push.
 
 ## License
 

@@ -13,6 +13,23 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- `codenv import devbox` converts a `devbox.json` into `codenv.json`. Nix
+  package names are mapped to the Scoop packages that provide them, the nix
+  attribute-path and flake-reference spellings (`python310Packages.python310`,
+  `flake:nixpkgs#go`) are reduced to a bare name, and version suffixes are
+  preserved as versions-bucket pins so `postgresql_16` becomes
+  `versions/postgresql16` rather than an unpinned `postgresql`.
+- Packages with no Scoop equivalent are reported and left out instead of being
+  replaced by a guess. Known cases carry a suggested alternative, for example
+  `tmux` points at `cygwin` or `msys2`.
+- `--dry-run` reports the conversion without writing anything, and `--force`
+  overwrites an existing `codenv.json`.
+- The mapping is a test-enforced table: every entry is checked against the real
+  `main`, `extras` and `versions` buckets, so a mapping cannot drift into
+  naming a package that does not exist.
+
 ### Fixed
 
 - `codenv shellenv --compact` is advertised in `--help` but the flag was never
