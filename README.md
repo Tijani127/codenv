@@ -235,6 +235,31 @@ Services live in `codenv-services.json` (same shape as devbox's `devbox-services
 Useful flags: `-c/--config <dir>`, `-q/--quiet`, `--pure`, `--env KEY=VALUE`, `--env-file <path>`,
 `--format powershell|bash|cmd`, `--no-install`.
 
+### Shell completion
+
+Add the matching line to your profile:
+
+```powershell
+# PowerShell: $PROFILE
+codenv completion powershell | Out-String | Invoke-Expression
+```
+
+```sh
+# bash or zsh: ~/.bashrc or ~/.zshrc
+source <(codenv completion bash)
+source <(codenv completion zsh)
+```
+
+```sh
+# fish: ~/.config/fish/config.fish
+codenv completion fish | source
+```
+
+In PowerShell, `Out-String` is required. `codenv completion powershell |
+Invoke-Expression` fails with `Missing closing '}'`, because piping into
+`Invoke-Expression` runs each line as its own statement and the script contains
+multi-line function blocks.
+
 ---
 
 ## Store modes and version pinning

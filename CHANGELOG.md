@@ -79,10 +79,13 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Documentation
 
-- Reworked the README: the shim rationale and the store internals no longer
-  overlap, the table of contents covers every section, the environment-variable
-  table is split into variables codenv reads versus the ones it sets, and the
-  devbox comparison no longer claims `devbox create` is unimplemented.
+- Documented how to install shell completion for each shell, and called out that
+  PowerShell needs `Out-String`:
+  `codenv completion powershell | Out-String | Invoke-Expression`. Piping
+  straight into `Invoke-Expression` fails with `Missing closing '}'`, because
+  PowerShell runs each piped line as its own statement and the script contains
+  multi-line function blocks. Cobra's own help already showed the correct
+  form; the README listed the command without showing how to load it.
 
 ## [1.0.0] - 2026-10-06 - Saskatchewan
 
