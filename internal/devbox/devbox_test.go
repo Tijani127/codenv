@@ -109,10 +109,39 @@ func TestNixBaseName(t *testing.T) {
 		"ripgrep":                     "ripgrep",
 		"nixpkgs#fd":                  "fd",
 		"apps.python":                 "python",
+		// A dot inside a version must survive. Splitting there reduced
+		// golang1.22 to "22" and lost the package entirely.
+		"golang1.22": "golang1.22",
+		"openssl3.3": "openssl3.3",
+		"python3.12": "python3.12",
 	}
 	for in, want := range cases {
 		if got := nixBaseName(in); got != want {
 			t.Errorf("nixBaseName(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestLookupHandlesEveryVersionSpelling(t *testing.T) {
+	cases := map[string]string{
+		"golang1.22":    "versions/go122",
+		"golang122":     "versions/go122",
+		"golang":        "go",
+		"postgresql_16": "versions/postgresql16",
+		"python311":     "versions/python311",
+		"python3.12":    "versions/python312",
+		"java21":        "java/temurin21-jdk",
+		"temurin21-jdk": "java/temurin21-jdk",
+		"openssl3.3":    "versions/openssl33",
+	}
+	for in, want := range cases {
+		got, ok := Lookup(in)
+		if !ok {
+			t.Errorf("Lookup(%q) found nothing", in)
+			continue
+		}
+		if got[0] != want {
+			t.Errorf("Lookup(%q)[0] = %q, want %q", in, got[0], want)
 		}
 	}
 }

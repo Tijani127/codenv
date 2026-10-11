@@ -414,7 +414,77 @@ func (e *Engine) manifestDirs(p config.LockedPackage) []string {
 			out = append(out, dir)
 		}
 	}
+	if len(out) == 0 {
+		out = probeLayoutDirs(base)
+	}
 	return existingDirs(out)
+}
+
+// commonBinDirs are the subdirectories that Scoop packages use to hold
+// executables. Roughly a third of manifests, 1346 of the 4716 in the synced
+// buckets, declare no bin at all, so the only way to find their executables is
+// to look at what was actually extracted.
+var commonBinDirs = []string{"bin", "tools", "Scripts", "libexec"}
+
+// probeLayoutDirs finds directories under an installed app that hold
+// executables. It is the fallback for manifests that declare no bin, such as
+// the JDKs in the java bucket where java.exe lives in bin\ rather than at the
+// app root, and Apache ant, which ships the same way.
+func probeLayoutDirs(base string) []string {
+	if !isDir(base) {
+		return nil
+	}
+	var out []string
+	// The app root counts only if it holds an executable directly, otherwise
+	// adding it to PATH is noise.
+	if dirHasExecutable(base) {
+		out = append(out, base)
+	}
+	for _, name := range commonBinDirs {
+		dir := filepath.Join(base, name)
+		if isDir(dir) && dirHasExecutable(dir) {
+			out = append(out, dir)
+		}
+	}
+	// Some archives nest everything under a single top-level directory.
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return out
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		child := filepath.Join(base, e.Name())
+		if dirHasExecutable(child) {
+			out = append(out, child)
+			continue
+		}
+		for _, name := range commonBinDirs {
+			sub := filepath.Join(child, name)
+			if isDir(sub) && dirHasExecutable(sub) {
+				out = append(out, sub)
+			}
+		}
+	}
+	return existingDirs(out)
+}
+
+func dirHasExecutable(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		switch strings.ToLower(filepath.Ext(e.Name())) {
+		case ".exe", ".bat", ".cmd", ".com", ".ps1":
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Engine) PathsFor(lock *config.Lock) []string {

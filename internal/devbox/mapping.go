@@ -13,6 +13,7 @@ import "strings"
 var nixToScoop = map[string][]string{
 	// Straightforward one-to-one renames.
 	"go":         {"go"},
+	"golang":     {"go"},
 	"nodejs":     {"nodejs-lts"},
 	"nodejs-lts": {"nodejs-lts"},
 	"ripgrep":    {"ripgrep"},
@@ -69,6 +70,21 @@ var nixToScoop = map[string][]string{
 	"clang":           {"llvm"},
 	"ca-certificates": {"openssl"},
 
+	// Java lives in the java bucket, which codenv knows about but does not
+	// sync by default. Version pins use the same numbered suffixes.
+	"java":              {"java/temurin-jdk"},
+	"jdk":               {"java/temurin-jdk"},
+	"openjdk":           {"java/openjdk"},
+	"temurin":           {"java/temurin-jdk"},
+	"zulu":              {"java/zulu-jdk"},
+	"corretto":          {"java/corretto-jdk"},
+	"graalvm":           {"java/graalvm-jdk"},
+	"liberica":          {"java/liberica-jdk"},
+	"sapmachine":        {"java/sapmachine-jdk"},
+	"microsoft-openjdk": {"java/microsoft-jdk"},
+	"oraclejdk":         {"java/oraclejdk"},
+	"java-jdk":          {"java/temurin-jdk"},
+
 	// Database servers are the same in both ecosystems. Nix commonly spells
 	// these with an underscore version suffix such as postgresql_16, which
 	// normaliseVersionSuffix turns into a versions-bucket pin.
@@ -107,17 +123,107 @@ var unmappedReason = map[string]string{
 	"python311Packages": "list the interpreter directly, for example versions/python311",
 }
 
+// versionedForms gives the per-version manifest name for packages whose
+// versioned builds are not a simple "base + digits" concatenation. The
+// java bucket uses vendor-prefixed names such as temurin21-jdk, so
+// java21 cannot be derived arithmetically from the base name.
+var versionedForms = map[string]func(num string) string{
+	"java":                func(num string) string { return "java/temurin" + num + "-jdk" },
+	"jdk":                 func(num string) string { return "java/temurin" + num + "-jdk" },
+	"temurin":             func(num string) string { return "java/temurin" + num + "-jdk" },
+	"openjdk":             func(num string) string { return "java/openjdk" + num },
+	"zulu":                func(num string) string { return "java/zulu" + num + "-jdk" },
+	"corretto":            func(num string) string { return "java/corretto" + num + "-jdk" },
+	"microsoft-openjdk":   func(num string) string { return "java/microsoft" + num + "-jdk" },
+	"liberica":            func(num string) string { return "java/liberica" + num + "-jdk" },
+	"sapmachine":          func(num string) string { return "java/sapmachine" + num + "-jdk" },
+	"graalvm":             func(num string) string { return "java/graalvm" + num + "-jdk" },
+	"postgresql":          func(num string) string { return "versions/postgresql" + num },
+	"nodejs":              func(num string) string { return "versions/nodejs" + num },
+	"nodejs-lts":          func(num string) string { return "versions/nodejs" + num },
+	"python":              func(num string) string { return "versions/python" + num },
+	"ruby":                func(num string) string { return "versions/ruby" + num },
+	"gradle":              func(num string) string { return "versions/gradle" + num },
+	"maven":               func(num string) string { return "versions/maven" + num },
+	"dotnet-sdk":          func(num string) string { return "versions/dotnet-sdk" + num },
+	"nuget":               func(num string) string { return "versions/nuget" + num },
+	"openssl":             func(num string) string { return "versions/openssl" + num },
+	"llvm":                func(num string) string { return "versions/llvm" + num },
+	"gcc":                 func(num string) string { return "versions/gcc" + num },
+	"mysql":               func(num string) string { return "versions/mysql" + num },
+	"mongodb":             func(num string) string { return "versions/mongodb" + num },
+	"redis":               func(num string) string { return "versions/redis" + num },
+	"sqlite":              func(num string) string { return "versions/sqlite" + num },
+	"deno":                func(num string) string { return "versions/deno" + num },
+	"bun":                 func(num string) string { return "versions/bun" + num },
+	"julia":               func(num string) string { return "versions/julia" + num },
+	"zig":                 func(num string) string { return "versions/zig" + num },
+	"terraform":           func(num string) string { return "versions/terraform" + num },
+	"kubernetes-cli":      func(num string) string { return "versions/kubernetes-cli" + num },
+	"kubectl":             func(num string) string { return "versions/kubectl" + num },
+	"dart":                func(num string) string { return "versions/dart" + num },
+	"flutter":             func(num string) string { return "versions/flutter" + num },
+	"gh":                  func(num string) string { return "versions/gh" + num },
+	"neovim":              func(num string) string { return "versions/neovim" + num },
+	"vim":                 func(num string) string { return "versions/vim" + num },
+	"lua":                 func(num string) string { return "versions/lua" + num },
+	"php":                 func(num string) string { return "versions/php" + num },
+	"elixir":              func(num string) string { return "versions/elixir" + num },
+	"erlang":              func(num string) string { return "versions/erlang" + num },
+	"crystal":             func(num string) string { return "versions/crystal" + num },
+	"nim":                 func(num string) string { return "versions/nim" + num },
+	"haskell":             func(num string) string { return "versions/ghc" + num },
+	"gcc-toolchain":       func(num string) string { return "versions/gcc" + num },
+	"postgresql_embedded": func(num string) string { return "versions/postgresql" + num },
+	"python310":           func(num string) string { return "versions/python" + num },
+	"python311":           func(num string) string { return "versions/python" + num },
+	"python312":           func(num string) string { return "versions/python" + num },
+	"python313":           func(num string) string { return "versions/python" + num },
+}
+
+// alreadyScoopNames are names that are already valid bucket-qualified Scoop
+// specs rather than nix attributes, so they pass through untouched.
+var alreadyScoopNames = map[string]bool{
+	"versions/python311": true,
+}
+
+// goVersions maps a Go release line to the versions-bucket manifest that ships
+// it. The bucket strips the dot, so 1.22 lives at versions/go122.
+var goVersions = map[string]string{
+	"113": "go113", "114": "go114", "115": "go115", "116": "go116",
+	"117": "go117", "118": "go118", "119": "go119", "120": "go120",
+	"121": "go121", "122": "go122", "123": "go123", "124": "go124",
+}
+
 // Lookup returns the Scoop packages that provide a nix package name.
 //
 // Nix attributes frequently carry a version suffix, either as postgresql_16 or
 // as python311. Those are turned into a versions-bucket pin where one exists,
 // so a pin written the nix way survives the import rather than being dropped.
 func Lookup(nixName string) ([]string, bool) {
+	if alreadyScoopNames[nixName] {
+		return []string{nixName}, true
+	}
+	// A vendor JDK pin such as temurin21-jdk already names a manifest in the
+	// java bucket, so it only needs the bucket attached.
+	if bucket, ok := javaBucketPin(nixName); ok {
+		return []string{bucket + "/" + nixName}, true
+	}
 	if pkgs, ok := nixToScoop[nixName]; ok && len(pkgs) > 0 {
 		return pkgs, true
 	}
 	if base, num, ok := splitVersionSuffix(nixName); ok {
+		// Go spells its release lines 1.22, and the bucket drops the dot.
+		if base == "golang" || base == "go" {
+			if manifest, found := goVersions[num]; found {
+				return []string{"versions/" + manifest}, true
+			}
+			return nil, false
+		}
 		if pkgs, ok := nixToScoop[base]; ok && len(pkgs) > 0 {
+			if form, special := versionedForms[base]; special {
+				return []string{form(num)}, true
+			}
 			pinned := make([]string, 0, len(pkgs))
 			for range pkgs {
 				pinned = append(pinned, "versions/"+base+num)
@@ -128,6 +234,26 @@ func Lookup(nixName string) ([]string, bool) {
 	return nil, false
 }
 
+// jdkVendors are the vendor prefixes used by the java bucket.
+var jdkVendors = []string{
+	"temurin", "corretto", "zulu", "liberica", "sapmachine",
+	"microsoft", "graalvm", "dragonwell", "semeru",
+}
+
+// javaBucketPin recognises a manifest that already carries its own version,
+// such as temurin21-jdk or openjdk21, and reports which bucket holds it.
+func javaBucketPin(name string) (string, bool) {
+	for _, vendor := range jdkVendors {
+		if strings.HasPrefix(name, vendor) && strings.HasSuffix(name, "-jdk") {
+			return "java", true
+		}
+	}
+	if strings.HasPrefix(name, "openjdk") && allDigits(strings.TrimPrefix(name, "openjdk")) {
+		return "java", true
+	}
+	return "", false
+}
+
 // splitVersionSuffix breaks "postgresql_16" into "postgresql" and "16", or
 // "python311" into "python" and "311". It returns false for names that carry
 // no trailing digits, so "vim" and "redis" are left alone.
@@ -136,6 +262,25 @@ func splitVersionSuffix(name string) (base, digits string, ok bool) {
 		candidate := name[i+1:]
 		if allDigits(candidate) {
 			return name[:i], candidate, true
+		}
+	}
+	// Dotted versions, as in golang1.22 or openssl3.3. The leading digit of
+	// the release line stays attached to the base, so golang1.22 yields the
+	// base "golang" and the digits "122".
+	if i := strings.LastIndex(name, "."); i > 0 && i < len(name)-1 {
+		candidate := name[i+1:]
+		if allDigits(candidate) {
+			prefix := name[:i]
+			if end := len(prefix) - 1; end > 0 && prefix[end] >= '0' && prefix[end] <= '9' {
+				trimmed := prefix[:end]
+				if j := len(trimmed) - 1; j >= 0 && trimmed[j] >= '0' && trimmed[j] <= '9' {
+					trimmed = trimmed[:j]
+				}
+				if trimmed != "" {
+					return trimmed, prefix[len(trimmed):] + candidate, true
+				}
+			}
+			return prefix, candidate, true
 		}
 	}
 	// Concatenated digits, as in python311.

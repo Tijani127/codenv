@@ -13,6 +13,27 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- `codenv` silently resolved the **wrong** program when a manifest declared no
+  `bin`. About 1346 of the 4716 manifests in the synced buckets declare no bin
+  and keep their executables in a subdirectory, so only the app root was put on
+  PATH. Installing a JDK from the `java` bucket and running `java` returned the
+  system JDK instead of the pinned one. codenv now probes the installed layout
+  for the directories that actually hold executables.
+- `"buckets"` in `codenv.json` was ignored. `config.Merge` copied the
+  receiver's buckets but never appended the other side's, so any bucket from an
+  included config was dropped and never cloned. A project declaring
+  `"buckets": ["java"]` failed to resolve anything.
+- `codenv import devbox` mangled names containing a version dot. `golang1.22`
+  was split on the dot and reduced to `22`, so the package was lost.
+- `codenv import devbox` did not map `golang`, the name asdf and mise use for
+  Go.
+- `codenv import devbox` reported "no equivalent found in the main, extras or
+  versions buckets" even for packages that exist in a bucket codenv knows about
+  but does not sync, such as Java. The message now names what it actually
+  checked.
+
 ### Added
 
 - `codenv import devbox` converts a `devbox.json` into `codenv.json`. Nix
@@ -24,13 +45,16 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Packages with no Scoop equivalent are reported and left out instead of being
   replaced by a guess. Known cases carry a suggested alternative, for example
   `tmux` points at `cygwin` or `msys2`.
+- Java imports from the `java` bucket, with version pins such as `java21`
+  becoming `java/temurin21-jdk`, and the required bucket is added to the
+  generated config automatically.
 - `--dry-run` reports the conversion without writing anything, and `--force`
   overwrites an existing `codenv.json`.
 - The mapping is a test-enforced table: every entry is checked against the real
   `main`, `extras` and `versions` buckets, so a mapping cannot drift into
   naming a package that does not exist.
 
-### Fixed
+### Removed
 
 - `codenv shellenv --compact` is advertised in `--help` but the flag was never
   read, so it silently printed the full multi-line script. It now emits a

@@ -341,6 +341,12 @@ func (c *Config) Merge(other *Config) *Config {
 	}
 	out.Secrets = mergeSecrets(c.Secrets, other.Secrets)
 	out.Packages = append(out.Packages, other.Packages...)
+	// Buckets were copied from the receiver only, so an included config's
+	// buckets were silently dropped and never cloned. Without this, a project
+	// declaring a non-default bucket such as java resolved no manifests.
+	if len(other.Buckets) > 0 {
+		out.Buckets = dedupeStrings(append(out.Buckets, other.Buckets...))
+	}
 	return out
 }
 

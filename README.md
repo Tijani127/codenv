@@ -372,6 +372,22 @@ points you at `codenv install` instead.
 | `devbox services` (process-compose) | `codenv services` (built-in supervisor) | No external process manager to install on Windows. Same config file shape. |
 | `devbox create <template>` (remote catalogue) | `codenv create <template>` (built-in) | Built-in templates ship with the binary; there is no remote template catalogue. |
 | `devbox.json` written by hand | `codenv import devbox` converts one | Package names are mapped to their Scoop equivalents. Packages with no equivalent are reported and left out rather than replaced by a guess. |
+
+### Importing from devbox
+
+```sh
+codenv import devbox            # writes codenv.json from ./devbox.json
+codenv import devbox --dry-run  # report the conversion without writing
+```
+
+The conversion keeps your pins. A version written the Nix way becomes a
+versions-bucket pin, so `postgresql_16` imports as `versions/postgresql16` and
+`python311` as `versions/python311`, rather than silently resolving to the
+latest release. Java imports from the `java` bucket, which codenv adds to
+`"buckets"` automatically because it does not sync that bucket by default.
+
+Anything with no Scoop equivalent is listed with a suggested alternative where
+one exists, for example `tmux` points at `cygwin` or `msys2`.
 | `devbox add --platform / --exclude-platform` | not implemented | Only one platform exists. |
 
 Two structural notes about Scoop that shape the implementation:
@@ -423,8 +439,9 @@ implemented, and every claim on this page is reproducible:
 - Two projects hold different versions of the same tool simultaneously (`7zip@24.09` and `7zip@26.03`).
 - Bucket repositories are left pristine (`git status` clean) after every install, so Scoop's autoupdate can
   never leak a downgrade between projects.
-- 61 tests cover the lockfile, package resolution, secret resolution, template rendering, `PATH`
-  lookup, shell-output formats, and devbox import mapping. CI runs them on every push.
+- 71 tests cover the lockfile, package resolution, secret resolution, template rendering, `PATH`
+  lookup, shell-output formats, config merging, package layout probing, and devbox import mapping.
+  CI runs them on every push.
 
 ## License
 

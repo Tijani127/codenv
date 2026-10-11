@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/Tijani127/codenv/internal/config"
@@ -178,13 +179,55 @@ func nixBaseName(s string) string {
 	if i := strings.Index(s, "#"); i >= 0 {
 		s = s[i+1:]
 	}
-	if i := strings.LastIndex(s, "."); i >= 0 && i < len(s)-1 {
+	if i := strings.LastIndex(s, "."); i > 0 && i < len(s)-1 && isAttributePath(s[:i]) {
 		s = s[i+1:]
 	}
 	if i := strings.Index(s, "/"); i >= 0 {
 		s = s[i+1:]
 	}
 	return s
+}
+
+// isAttributePath reports whether a string looks like the left-hand side of a
+// nix attribute path, such as "python310Packages" or "legacyPackages".
+// It exists because the same dot also separates a version, as in "golang1.22",
+// and splitting there would reduce the name to "22".
+func isAttributePath(s string) bool {
+	if s == "" || endsInDigit(s) {
+		return false
+	}
+	for i, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r == '-', r == '_':
+		case r >= '0' && r <= '9':
+			// Digits are fine mid-segment, as in python310Packages.
+			if i == 0 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func endsInDigit(s string) bool {
+	if s == "" {
+		return false
+	}
+	c := s[len(s)-1]
+	return c >= '0' && c <= '9'
+}
+
+// isDefaultBucket reports whether codenv syncs a bucket without being asked.
+// Anything else referenced by a generated package must be added to the
+// config's bucket list or it will not resolve.
+func isDefaultBucket(name string) bool {
+	switch name {
+	case "main", "extras", "versions":
+		return true
+	}
+	return false
 }
 
 // ToConfig renders the plan as a codenv.json config. Unmapped packages are
@@ -195,6 +238,25 @@ func (r *Result) ToConfig() *config.Config {
 		for _, s := range conv.Scoop {
 			c.Packages = append(c.Packages, s)
 		}
+	}
+	// A package from a bucket codenv does not sync by default, such as the
+	// java bucket, fails to resolve unless that bucket is listed. Adding it
+	// here keeps a generated config installable rather than merely correct.
+	extra := map[string]bool{}
+	for _, conv := range r.Converted {
+		for _, s := range conv.Scoop {
+			if bucket, _, ok := strings.Cut(s, "/"); ok && bucket != "" && !isDefaultBucket(bucket) {
+				extra[bucket] = true
+			}
+		}
+	}
+	if len(extra) > 0 {
+		names := make([]string, 0, len(extra))
+		for b := range extra {
+			names = append(names, b)
+		}
+		sort.Strings(names)
+		c.Buckets = names
 	}
 	if len(r.Env) > 0 {
 		c.Env = r.Env

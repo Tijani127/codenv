@@ -7,33 +7,60 @@ import (
 	"testing"
 )
 
+// bucketRoot returns a directory of synced Scoop buckets, or skips.
+func bucketRoot(t *testing.T) string {
+	t.Helper()
+	root := os.Getenv("CODEENV_BUCKET_ROOT")
+	if root != "" {
+		return root
+	}
+	home := os.Getenv("LOCALAPPDATA")
+	if home == "" {
+		t.Skip("no LOCALAPPDATA")
+	}
+	candidate := filepath.Join(home, "codenv", "store", "buckets")
+	if _, err := os.Stat(candidate); err != nil {
+		t.Skipf("no bucket store at %s", candidate)
+	}
+	return candidate
+}
+
+// manifestExists reports whether a bucket-qualified or bare target exists.
+// The java bucket is not synced by default, so its mappings are only
+// checked when that bucket is actually present locally.
+func manifestExists(root, target string) bool {
+	bucket, name := "", target
+	if b, n, ok := strings.Cut(target, "/"); ok {
+		bucket, name = b, n
+	}
+	if bucket != "" {
+		_, err := os.Stat(filepath.Join(root, bucket, "bucket", name+".json"))
+		return err == nil
+	}
+	for _, b := range []string{"main", "extras", "versions"} {
+		if _, err := os.Stat(filepath.Join(root, b, "bucket", target+".json")); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // TestEveryMappingResolvesToARealManifest guards against inventing Scoop
 // package names. It only runs where a live store exists.
 func TestEveryMappingResolvesToARealManifest(t *testing.T) {
-	root := os.Getenv("CODEENV_BUCKET_ROOT")
-	if root == "" {
-		home := os.Getenv("LOCALAPPDATA")
-		if home == "" {
-			t.Skip("no LOCALAPPDATA")
-		}
-		candidate := filepath.Join(home, "codenv", "store", "buckets")
-		if _, err := os.Stat(candidate); err != nil {
-			t.Skipf("no bucket store at %s", candidate)
-		}
-		root = candidate
+	root := bucketRoot(t)
+
+	javaSynced := false
+	if _, err := os.Stat(filepath.Join(root, "java", "bucket", "temurin-jdk.json")); err == nil {
+		javaSynced = true
 	}
 
-	buckets := []string{"main", "extras", "versions"}
 	for nixName, targets := range Known() {
 		for _, target := range targets {
-			found := false
-			for _, b := range buckets {
-				if _, err := os.Stat(filepath.Join(root, b, "bucket", target+".json")); err == nil {
-					found = true
-					break
-				}
+			if strings.HasPrefix(target, "java/") && !javaSynced {
+				continue
 			}
-			if !found {
+			if !manifestExists(root, target) {
 				t.Errorf("mapping %q -> %q does not exist in any bucket", nixName, target)
 			}
 		}
@@ -41,7 +68,7 @@ func TestEveryMappingResolvesToARealManifest(t *testing.T) {
 
 	// The nix-style version suffix idiom must also resolve to something real,
 	// otherwise an import silently drops a pin the user asked for.
-	for _, nixName := range []string{"postgresql_16", "python311", "python310"} {
+	for _, nixName := range []string{"postgresql_16", "python311", "python310", "nodejs22"} {
 		targets, ok := Lookup(nixName)
 		if !ok {
 			t.Errorf("Lookup(%q) found nothing", nixName)
@@ -54,9 +81,42 @@ func TestEveryMappingResolvesToARealManifest(t *testing.T) {
 				continue
 			}
 			if _, err := os.Stat(filepath.Join(root, bucket, "bucket", name+".json")); err != nil {
-				t.Errorf("Lookup(%q) -> %q does not exist", nixName, target)
+				// The java bucket is not synced by default, so only report a
+				// miss there when the bucket really is present.
+				if bucket != "java" {
+					t.Errorf("Lookup(%q) -> %q does not exist", nixName, target)
+				}
 			}
 		}
+	}
+}
+
+// TestJavaMappingsTargetTheJavaBucket guards the finding that Java is absent
+// from main, extras and versions but fully available in the java bucket. A
+// mapping that claims no equivalent exists would be factually wrong.
+func TestJavaMappingsTargetTheJavaBucket(t *testing.T) {
+	root := bucketRoot(t)
+	if _, err := os.Stat(filepath.Join(root, "main", "bucket", "java.json")); err == nil {
+		t.Error("main/java now exists; the java bucket mapping should be revisited")
+	}
+
+	for _, nixName := range []string{"java", "jdk", "temurin", "zulu", "openjdk"} {
+		targets, ok := Lookup(nixName)
+		if !ok {
+			t.Errorf("Lookup(%q) found nothing, but Java is available in the java bucket", nixName)
+			continue
+		}
+		for _, target := range targets {
+			if !strings.HasPrefix(target, "java/") {
+				t.Errorf("Lookup(%q) = %q, want a java/ bucket target", nixName, target)
+			}
+		}
+	}
+
+	// A numbered java pin must name a concrete vendor build.
+	got, ok := Lookup("java21")
+	if !ok || got[0] != "java/temurin21-jdk" {
+		t.Errorf("Lookup(java21) = %v, %v; want java/temurin21-jdk", got, ok)
 	}
 }
 

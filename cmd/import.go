@@ -69,7 +69,7 @@ var importDevboxCmd = &cobra.Command{
 				if u.Reason != "" {
 					ui.Detail("%-18s %s", u.Nix, u.Reason)
 				} else {
-					ui.Detail("%-18s no equivalent found in the main, extras or versions buckets", u.Nix)
+					ui.Detail("%-18s no equivalent in any bucket codenv knows about", u.Nix)
 				}
 			}
 		}
