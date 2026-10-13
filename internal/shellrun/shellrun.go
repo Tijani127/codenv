@@ -14,6 +14,9 @@ const (
 	KindPowerShell Kind = "powershell"
 	KindCmd        Kind = "cmd"
 	KindBash       Kind = "bash"
+	// KindPosix covers unix shells that, like bash, run a command with -c.
+	// codenv does not need to parse their syntax, only to launch a script.
+	KindPosix Kind = "posix"
 )
 
 type Shell struct {
@@ -38,14 +41,35 @@ func Detect() Shell {
 
 func kindOf(path string) Kind {
 	base := strings.ToLower(filepath.Base(path))
+	// Compare against the program name rather than using Contains, so a
+	// program called bashtop or powershell-helper is not mistaken for a shell.
+	name := base
+	if i := strings.IndexByte(name, '.'); i > 0 {
+		name = name[:i]
+	}
 	switch {
-	case strings.Contains(base, "pwsh") || strings.Contains(base, "powershell"):
+	case name == "pwsh", name == "powershell", name == "powershell_ise":
 		return KindPowerShell
-	case strings.Contains(base, "bash"):
+	case name == "bash":
 		return KindBash
+	case isPosixShell(name):
+		return KindPosix
 	default:
 		return KindCmd
 	}
+}
+
+// posixShells are unix shells that accept -c for a one-off command. They are
+// treated the same as bash because they share that flag, not their syntax.
+var posixShells = []string{"zsh", "fish", "sh", "dash", "ksh", "ash", "busybox"}
+
+func isPosixShell(name string) bool {
+	for _, s := range posixShells {
+		if name == s {
+			return true
+		}
+	}
+	return false
 }
 
 func (s Shell) ScriptFlags() []string {
@@ -53,6 +77,8 @@ func (s Shell) ScriptFlags() []string {
 	case KindPowerShell:
 		return []string{"-NoProfile", "-Command"}
 	case KindBash:
+		return []string{"-c"}
+	case KindPosix:
 		return []string{"-c"}
 	default:
 		return []string{"/c"}

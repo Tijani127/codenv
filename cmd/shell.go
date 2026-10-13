@@ -335,7 +335,7 @@ func init() {
 	shellFlags.registerNoPrompt(shellCmd)
 	runFlags.registerNoPrompt(runCmd)
 	shellCmd.Flags().BoolVar(&shellPromptMark, "prompt", true, "mark the shell prompt while inside codenv")
-	shellenvCmd.Flags().StringVar(&shellenvFlags.format, "format", "auto", "shell format to print (powershell, bash, cmd)")
+	shellenvCmd.Flags().StringVar(&shellenvFlags.format, "format", "auto", "shell format to print (powershell, bash, zsh, fish, cmd)")
 	shellenvCmd.Flags().BoolVar(&shellenvFlags.compact, "compact", false, "print a single-line PATH export")
 	rootCmd.AddCommand(shellCmd, runCmd, shellenvCmd)
 }

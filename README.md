@@ -233,7 +233,7 @@ Services live in `codenv-services.json` (same shape as devbox's `devbox-services
 | `codenv version` | Version and store information |
 
 Useful flags: `-c/--config <dir>`, `-q/--quiet`, `--pure`, `--env KEY=VALUE`, `--env-file <path>`,
-`--format powershell|bash|cmd`, `--no-install`.
+`--format powershell|bash|zsh|fish|cmd`, `--no-install`.
 
 ### Shell completion
 
@@ -259,6 +259,26 @@ In PowerShell, `Out-String` is required. `codenv completion powershell |
 Invoke-Expression` fails with `Missing closing '}'`, because piping into
 `Invoke-Expression` runs each line as its own statement and the script contains
 multi-line function blocks.
+
+### POSIX shells
+
+`codenv shellenv --format` accepts `bash`, `sh`, `zsh`, `fish`, `ksh` and `dash`.
+All six share one script shape, built from POSIX arrays and
+`export NAME=value`, so nothing in it is bash-specific. `codenv` also detects
+the shell from `$SHELL` and, under Git Bash or MSYS2, from `$MSYSTEM`, so
+`eval "$(codenv shellenv)"` works without naming a format. Override with
+`CODEENV_SHELL_FORMAT` when the detection is wrong.
+
+`codenv shell` can start `zsh`, `fish`, `sh`, `ksh` and `dash` directly, and
+runs your init hook and scripts through them.
+
+Two things are still Windows-specific, and are worth knowing before assuming
+codenv runs on a unix host:
+
+- Packages are installed by Scoop. A unix build needs a different installer and
+  a different shim concept; the shim-harvesting trick has no unix equivalent.
+- Generated paths use the platform separator, so the script is correct either
+  way, but the store layout and manifest lookup assume Windows paths.
 
 ---
 
@@ -464,9 +484,9 @@ implemented, and every claim on this page is reproducible:
 - Two projects hold different versions of the same tool simultaneously (`7zip@24.09` and `7zip@26.03`).
 - Bucket repositories are left pristine (`git status` clean) after every install, so Scoop's autoupdate can
   never leak a downgrade between projects.
-- 71 tests cover the lockfile, package resolution, secret resolution, template rendering, `PATH`
-  lookup, shell-output formats, config merging, package layout probing, and devbox import mapping.
-  CI runs them on every push.
+- 81 tests cover the lockfile, package resolution, secret resolution, template rendering, `PATH`
+  lookup, shell-output formats, config merging, package layout probing, shell
+  detection, and devbox import mapping. CI runs them on every push.
 
 ## License
 

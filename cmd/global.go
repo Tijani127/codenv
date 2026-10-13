@@ -354,7 +354,7 @@ func writeTempConfig(data []byte) string {
 }
 
 func init() {
-	globalShellenvCmd.Flags().StringVar(&globalShellenvFlags.format, "format", "auto", "shell format to print (powershell, bash, cmd)")
+	globalShellenvCmd.Flags().StringVar(&globalShellenvFlags.format, "format", "auto", "shell format to print (powershell, bash, zsh, fish, cmd)")
 	globalRunCmd.Flags().SetInterspersed(false)
 	globalRunFlags.register(globalRunCmd)
 	globalCmd.AddCommand(

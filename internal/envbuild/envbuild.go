@@ -280,20 +280,23 @@ func sortedKeys(m map[string]string) []string {
 
 func DetectFormat() Format {
 	if v := os.Getenv("CODEENV_SHELL_FORMAT"); v != "" {
-		switch strings.ToLower(strings.TrimSpace(v)) {
-		case "powershell", "ps", "pwsh":
-			return FormatPowerShell
-		case "bash", "sh", "fish":
-			return FormatBash
-		case "cmd", "bat":
-			return FormatCmd
+		if f, err := ParseFormat(v); err == nil {
+			return f
 		}
 	}
 	shell := strings.ToLower(os.Getenv("SHELL"))
-	if os.Getenv("MSYSTEM") != "" || strings.Contains(shell, "bash") || strings.Contains(shell, "zsh") {
+	// MSYSTEM is set by Git Bash and MSYS2. SHELL covers a real login shell,
+	// which is the only signal available in a unix environment.
+	if os.Getenv("MSYSTEM") != "" {
 		return FormatBash
 	}
-	if strings.Contains(shell, "fish") {
+	switch {
+	case strings.Contains(shell, "bash"),
+		strings.Contains(shell, "zsh"),
+		strings.Contains(shell, "fish"),
+		strings.HasSuffix(shell, "/sh"),
+		strings.HasSuffix(shell, "/dash"),
+		strings.HasSuffix(shell, "/ksh"):
 		return FormatBash
 	}
 	return FormatPowerShell
@@ -303,12 +306,15 @@ func ParseFormat(v string) (Format, error) {
 	switch strings.ToLower(strings.TrimSpace(v)) {
 	case "", "auto", "ps", "powershell", "pwsh":
 		return FormatPowerShell, nil
-	case "bash", "sh", "shellscript", "fish":
+	case "bash", "sh", "shellscript", "zsh", "fish", "ksh", "dash":
+		// POSIX shells share one script shape: POSIX arrays, single-quoted
+		// values, and `export NAME=value`. Nothing in it is bash-specific, so
+		// sh, zsh, ksh, dash and fish all run it unchanged.
 		return FormatBash, nil
 	case "cmd", "bat", "batch":
 		return FormatCmd, nil
 	default:
-		return "", fmt.Errorf("unknown shell format %q (want powershell, bash, or cmd)", v)
+		return "", fmt.Errorf("unknown shell format %q (want powershell, bash, zsh, fish, or cmd)", v)
 	}
 }
 
@@ -344,10 +350,18 @@ func shellQuoteOne(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+// pathSep returns the separator used in PATH on this platform. It is a
+// function rather than an inline os.PathListSeparator so the generated shell
+// scripts never hardcode a separator, which keeps them correct if codenv is
+// ever built for a platform where PATH is joined differently.
+func pathSep() string {
+	return string(os.PathListSeparator)
+}
+
 func (e *Env) powershellScript() string {
 	var b strings.Builder
 	b.WriteString("$codenvDirs = @(" + quoteList(e.PathDirs, `"`) + ")\n")
-	b.WriteString("$codenvSep = ';'\n")
+	b.WriteString("$codenvSep = " + quotePS(pathSep()) + "\n")
 	b.WriteString("$codenvKeep = @($codenvDirs)\n")
 	b.WriteString("$codenvRest = @($env:PATH -split $codenvSep | Where-Object { $_ -and ($codenvKeep -notcontains $_) })\n")
 	b.WriteString("$env:PATH = (($codenvDirs + $codenvRest) -join $codenvSep)\n")
@@ -363,7 +377,11 @@ func (e *Env) powershellScript() string {
 func (e *Env) bashScript() string {
 	var b strings.Builder
 	b.WriteString("codenv_dirs=(" + strings.Join(shellQuote(e.PathDirs), " ") + ")\n")
-	b.WriteString("IFS=':' read -ra codenv_rest <<< \"$PATH\"\n")
+	// The separator is read from the platform rather than assumed to be ':'.
+	// A POSIX codenv would be correct as-is, but hardcoding it makes this
+	// script wrong anywhere PATH is joined by a different character.
+	sep := shellQuote([]string{pathSep()})[0]
+	b.WriteString("IFS=" + sep + " read -ra codenv_rest <<< \"$PATH\"\n")
 	b.WriteString("codenv_new=()\n")
 	b.WriteString("for d in \"${codenv_dirs[@]}\"; do codenv_new+=(\"$d\"); done\n")
 	b.WriteString("for d in \"${codenv_rest[@]}\"; do\n")
@@ -372,7 +390,7 @@ func (e *Env) bashScript() string {
 	b.WriteString("  for c in \"${codenv_dirs[@]}\"; do [ \"$d\" = \"$c\" ] && skip=1 && break; done\n")
 	b.WriteString("  [ \"$skip\" = \"0\" ] && codenv_new+=(\"$d\")\n")
 	b.WriteString("done\n")
-	b.WriteString("export PATH=\"$(IFS=':'; echo \"${codenv_new[*]}\")\"\n")
+	b.WriteString("export PATH=\"$(IFS=" + sep + "; echo \"${codenv_new[*]}\")\"\n")
 	for _, k := range sortedKeys(e.Vars) {
 		if strings.EqualFold(k, "PATH") {
 			continue
@@ -385,7 +403,7 @@ func (e *Env) bashScript() string {
 func (e *Env) cmdScript() string {
 	var b strings.Builder
 	b.WriteString("@echo off\r\n")
-	b.WriteString("set \"PATH=" + strings.Join(e.PathDirs, ";") + ";%PATH%\"\r\n")
+	b.WriteString("set \"PATH=" + strings.Join(e.PathDirs, pathSep()) + ";%PATH%\"\r\n")
 	for _, k := range sortedKeys(e.Vars) {
 		if strings.EqualFold(k, "PATH") {
 			continue

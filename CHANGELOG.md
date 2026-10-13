@@ -15,6 +15,23 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- `codenv shellenv --format bash` split `PATH` on `:` regardless of platform.
+  On Windows `PATH` is joined with `;`, so the script never split it and the
+  inherited entries were not deduplicated. Every generated format now uses the
+  platform separator.
+- `codenv shell` could not start a unix shell. Only `pwsh`, `powershell` and
+  `bash` were recognised, so `zsh`, `fish`, `sh`, `dash` and `ksh` were
+  launched with `/c`, which no unix shell accepts. They are now recognised and
+  run with `-c`.
+- Shell detection compared substrings, so a program named `bashtop` was
+  treated as bash and `resharper` as powershell. It now compares the program
+  name.
+- `CODEENV_SHELL_FORMAT` and `$SHELL` detection had drifted apart. Both now go
+  through the same parser, and an unrecognised value falls back to detection
+  instead of silently defaulting.
+
+### Added
+
 - `codenv` silently resolved the **wrong** program when a manifest declared no
   `bin`. About 1346 of the 4716 manifests in the synced buckets declare no bin
   and keep their executables in a subdirectory, so only the app root was put on
@@ -53,6 +70,9 @@ and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - The mapping is a test-enforced table: every entry is checked against the real
   `main`, `extras` and `versions` buckets, so a mapping cannot drift into
   naming a package that does not exist.
+- `codenv shellenv --format` accepts `zsh`, `sh`, `ksh` and `dash` alongside
+  `bash` and `fish`. The POSIX script is verified by test to avoid bash-only
+  constructs such as `[[`, `local` and `mapfile`.
 
 ### Removed
 
