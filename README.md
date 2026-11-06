@@ -189,7 +189,7 @@ template needs. List them with `codenv create templates`.
 `codenv.lock.json` is generated. Do not edit it by hand; it records the exact version, bucket, architecture
 and dependency graph that `codenv install` materialised.
 
-Services live in `codenv-services.json` (same shape as devbox's `devbox-services.json`):
+Services live in `codenv-services.json` (different from process-compose.yml). Each service is a long-running process, and `codenv` supervises them.
 
 ```jsonc
 {
