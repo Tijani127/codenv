@@ -204,9 +204,9 @@ jobs:
             fi
           fi
           if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber --repo "$REPO"
+            gh release upload "$TAG" dist/* install.ps1 --clobber --repo "$REPO"
           else
-            gh release create "$TAG" dist/* --repo "$REPO" \
+            gh release create "$TAG" dist/* install.ps1 --repo "$REPO" \
               --title "$title" --notes-file "$notes"
           fi
           gh release view "$TAG" --repo "$REPO"
