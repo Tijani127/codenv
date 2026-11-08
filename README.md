@@ -417,23 +417,30 @@ points you at `codenv install` instead.
 | `devbox services` (process-compose) | `codenv services` (built-in supervisor) | No external process manager to install on Windows. Same config file shape. |
 | `devbox create <template>` (remote catalogue) | `codenv create <template>` (built-in) | Built-in templates ship with the binary; there is no remote template catalogue. |
 | `devbox.json` written by hand | `codenv import devbox` converts one | Package names are mapped to their Scoop equivalents. Packages with no equivalent are reported and left out rather than replaced by a guess. |
+| `devbox add --platform` / `--exclude-platform` | not implemented | Only one platform exists. |
 
 ### Importing from devbox
 
 ```sh
 codenv import devbox            # writes codenv.json from ./devbox.json
 codenv import devbox --dry-run  # report the conversion without writing
+codenv import devbox --force    # overwrite an existing codenv.json
 ```
 
 The conversion keeps your pins. A version written the Nix way becomes a
 versions-bucket pin, so `postgresql_16` imports as `versions/postgresql16` and
 `python311` as `versions/python311`, rather than silently resolving to the
-latest release. Java imports from the `java` bucket, which codenv adds to
-`"buckets"` automatically because it does not sync that bucket by default.
+latest release. Nix attribute-path and flake-reference spellings such as
+`python310Packages.python310` and `flake:nixpkgs#go` are reduced to a bare
+name. Java imports from the `java` bucket — for example `java21` becomes
+`java/temurin21-jdk` — and the bucket is added to `"buckets"` automatically,
+because codenv does not sync that bucket by default.
 
-Anything with no Scoop equivalent is listed with a suggested alternative where
-one exists, for example `tmux` points at `cygwin` or `msys2`.
-| `devbox add --platform / --exclude-platform` | not implemented | Only one platform exists. |
+Every mapping is a test-enforced table: each entry is checked against the real
+`main`, `extras` and `versions` buckets, so it cannot drift into naming a
+package that does not exist. Anything with no Scoop equivalent is listed with a
+suggested alternative where one exists, for example `tmux` points at `cygwin`
+or `msys2`.
 
 Two structural notes about Scoop that shape the implementation:
 
@@ -454,7 +461,7 @@ Read by codenv:
 | --- | --- |
 | `CODEENV_HOME` | Override the codenv home directory (default `%LOCALAPPDATA%\codenv`) |
 | `CODEENV_SHELL_BIN` | Force the shell `codenv shell` launches (PowerShell path, `bash`, `cmd`, ...) |
-| `CODEENV_SHELL_FORMAT` | Default format for `shellenv` output: `powershell`, `bash` or `cmd` |
+| `CODEENV_SHELL_FORMAT` | Default format for `shellenv` output: `powershell`, `bash`, `sh`, `zsh`, `fish`, `ksh`, `dash` or `cmd` |
 | `CODEENV_POWERSHELL` | PowerShell executable used to run Scoop internally |
 | `NO_COLOR`, `CODEENV_FORCE_COLOR` | Colour control |
 

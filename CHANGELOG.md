@@ -11,102 +11,6 @@ so a tag that is not listed ships without a codename.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Fixed
-
-- `codenv shellenv --format bash` split `PATH` on `:` regardless of platform.
-  On Windows `PATH` is joined with `;`, so the script never split it and the
-  inherited entries were not deduplicated. Every generated format now uses the
-  platform separator.
-- `codenv shell` could not start a unix shell. Only `pwsh`, `powershell` and
-  `bash` were recognised, so `zsh`, `fish`, `sh`, `dash` and `ksh` were
-  launched with `/c`, which no unix shell accepts. They are now recognised and
-  run with `-c`.
-- Shell detection compared substrings, so a program named `bashtop` was
-  treated as bash and `resharper` as powershell. It now compares the program
-  name.
-- `CODEENV_SHELL_FORMAT` and `$SHELL` detection had drifted apart. Both now go
-  through the same parser, and an unrecognised value falls back to detection
-  instead of silently defaulting.
-
-### Added
-
-- `codenv` silently resolved the **wrong** program when a manifest declared no
-  `bin`. About 1346 of the 4716 manifests in the synced buckets declare no bin
-  and keep their executables in a subdirectory, so only the app root was put on
-  PATH. Installing a JDK from the `java` bucket and running `java` returned the
-  system JDK instead of the pinned one. codenv now probes the installed layout
-  for the directories that actually hold executables.
-- `"buckets"` in `codenv.json` was ignored. `config.Merge` copied the
-  receiver's buckets but never appended the other side's, so any bucket from an
-  included config was dropped and never cloned. A project declaring
-  `"buckets": ["java"]` failed to resolve anything.
-- `codenv import devbox` mangled names containing a version dot. `golang1.22`
-  was split on the dot and reduced to `22`, so the package was lost.
-- `codenv import devbox` did not map `golang`, the name asdf and mise use for
-  Go.
-- `codenv import devbox` reported "no equivalent found in the main, extras or
-  versions buckets" even for packages that exist in a bucket codenv knows about
-  but does not sync, such as Java. The message now names what it actually
-  checked.
-
-### Added
-
-- `codenv import devbox` converts a `devbox.json` into `codenv.json`. Nix
-  package names are mapped to the Scoop packages that provide them, the nix
-  attribute-path and flake-reference spellings (`python310Packages.python310`,
-  `flake:nixpkgs#go`) are reduced to a bare name, and version suffixes are
-  preserved as versions-bucket pins so `postgresql_16` becomes
-  `versions/postgresql16` rather than an unpinned `postgresql`.
-- Packages with no Scoop equivalent are reported and left out instead of being
-  replaced by a guess. Known cases carry a suggested alternative, for example
-  `tmux` points at `cygwin` or `msys2`.
-- Java imports from the `java` bucket, with version pins such as `java21`
-  becoming `java/temurin21-jdk`, and the required bucket is added to the
-  generated config automatically.
-- `--dry-run` reports the conversion without writing anything, and `--force`
-  overwrites an existing `codenv.json`.
-- The mapping is a test-enforced table: every entry is checked against the real
-  `main`, `extras` and `versions` buckets, so a mapping cannot drift into
-  naming a package that does not exist.
-- `codenv shellenv --format` accepts `zsh`, `sh`, `ksh` and `dash` alongside
-  `bash` and `fish`. The POSIX script is verified by test to avoid bash-only
-  constructs such as `[[`, `local` and `mapfile`.
-
-### Removed
-
-- `codenv shellenv --compact` is advertised in `--help` but the flag was never
-  read, so it silently printed the full multi-line script. It now emits a
-  single `PATH` export for PowerShell, bash and cmd.
-- `CODEENV_SHELL_FORMAT` was documented but not implemented. It now selects the
-  `shellenv` format and falls back to auto-detection when the value is not
-  recognised.
-- `codenv rm --force` did nothing; `rm` already succeeds when a package is
-  absent, so the flag has been removed.
-- `LookPath` resolved relative paths against codenv's own working directory
-  instead of the project's, so `codenv shell .\bin\app.exe` failed. Relative
-  paths are now resolved against the project directory.
-- An in-place environment filter used by `--pure` compacted a slice without
-  shortening it, which leaked unrelated variables into the sanitised
-  environment.
-
-### Removed
-
-- Dead code with no callers: `engine.lastLines`, `project.RelOrSame`,
-  `ui.SetOutput`, `ui.SetColorEnabled`, `ui.KeyValue`, `ui.Rule`, and an
-  unused `flagAddOutputs` variable.
-
-### Documentation
-
-- Documented how to install shell completion for each shell, and called out that
-  PowerShell needs `Out-String`:
-  `codenv completion powershell | Out-String | Invoke-Expression`. Piping
-  straight into `Invoke-Expression` fails with `Missing closing '}'`, because
-  PowerShell runs each piped line as its own statement and the script contains
-  multi-line function blocks. Cobra's own help already showed the correct
-  form; the README listed the command without showing how to load it.
-
 ## [1.0.0] - 2026-10-06 - Saskatchewan
 
 First stable release. codenv creates isolated, reproducible development
@@ -156,8 +60,9 @@ environment resolves to.
   the child's exit code.
 - `shell.init_hook` runs on every shell and script start.
 - `--pure` reduces the environment to a minimal set, `--env`/`--env-file` set
-  variables, `codenv shellenv` prints PowerShell, bash or cmd code for
-  direnv and editor integrations.
+  variables, and `codenv shellenv` prints PowerShell, bash, sh, zsh, fish, ksh
+  or dash code for direnv and editor integrations. The POSIX script is verified
+  by test to avoid bash-only constructs such as `[[`, `local` and `mapfile`.
 
 **Global packages**
 
@@ -202,14 +107,99 @@ environment resolves to.
 - `codenv cache info|clean`, and shell completions for PowerShell, bash, zsh
   and fish.
 
+**Importing from devbox**
+
+- `codenv import devbox` converts a `devbox.json` into `codenv.json`. Nix
+  package names are mapped to the Scoop packages that provide them, the nix
+  attribute-path and flake-reference spellings (`python310Packages.python310`,
+  `flake:nixpkgs#go`) are reduced to a bare name, and version suffixes are
+  preserved as versions-bucket pins so `postgresql_16` becomes
+  `versions/postgresql16` rather than an unpinned `postgresql`.
+- Packages with no Scoop equivalent are reported and left out instead of being
+  replaced by a guess. Known cases carry a suggested alternative, for example
+  `tmux` points at `cygwin` or `msys2`.
+- Java imports from the `java` bucket, with version pins such as `java21`
+  becoming `java/temurin21-jdk`, and the required bucket is added to the
+  generated config automatically.
+- `--dry-run` reports the conversion without writing anything, and `--force`
+  overwrites an existing `codenv.json`.
+- The mapping is a test-enforced table: every entry is checked against the real
+  `main`, `extras` and `versions` buckets, so a mapping cannot drift into
+  naming a package that does not exist.
+
+### Fixed
+
+- `codenv shellenv --format bash` split `PATH` on `:` regardless of platform.
+  On Windows `PATH` is joined with `;`, so the script never split it and the
+  inherited entries were not deduplicated. Every generated format now uses the
+  platform separator.
+- `codenv shell` could not start a unix shell. Only `pwsh`, `powershell` and
+  `bash` were recognised, so `zsh`, `fish`, `sh`, `dash` and `ksh` were
+  launched with `/c`, which no unix shell accepts. They are now recognised and
+  run with `-c`.
+- Shell detection compared substrings, so a program named `bashtop` was
+  treated as bash and `resharper` as powershell. It now compares the program
+  name.
+- `CODEENV_SHELL_FORMAT` and `$SHELL` detection had drifted apart. Both now go
+  through the same parser, and an unrecognised value falls back to detection
+  instead of silently defaulting.
+- `codenv` silently resolved the **wrong** program when a manifest declared no
+  `bin`. About 1346 of the 4716 manifests in the synced buckets declare no bin
+  and keep their executables in a subdirectory, so only the app root was put on
+  PATH. Installing a JDK from the `java` bucket and running `java` returned the
+  system JDK instead of the pinned one. codenv now probes the installed layout
+  for the directories that actually hold executables.
+- `"buckets"` in `codenv.json` was ignored. `config.Merge` copied the
+  receiver's buckets but never appended the other side's, so any bucket from an
+  included config was dropped and never cloned. A project declaring
+  `"buckets": ["java"]` failed to resolve anything.
+- `codenv import devbox` mangled names containing a version dot. `golang1.22`
+  was split on the dot and reduced to `22`, so the package was lost.
+- `codenv import devbox` did not map `golang`, the name asdf and mise use for
+  Go.
+- `codenv import devbox` reported "no equivalent found in the main, extras or
+  versions buckets" even for packages that exist in a bucket codenv knows about
+  but does not sync, such as Java. The message now names what it actually
+  checked.
+- `LookPath` resolved relative paths against codenv's own working directory
+  instead of the project's, so `codenv shell .\bin\app.exe` failed. Relative
+  paths are now resolved against the project directory.
+- An in-place environment filter used by `--pure` compacted a slice without
+  shortening it, which leaked unrelated variables into the sanitised
+  environment.
+
+### Removed
+
+- `codenv shellenv --compact` was advertised in `--help` but never read, so it
+  silently printed the full multi-line script. It now emits a single `PATH`
+  export for PowerShell, bash and cmd.
+- `CODEENV_SHELL_FORMAT` was documented but not implemented. It now selects the
+  `shellenv` format and falls back to auto-detection when the value is not
+  recognised.
+- `codenv rm --force` did nothing; `rm` already succeeds when a package is
+  absent, so the flag has been removed.
+- Dead code with no callers: `engine.lastLines`, `project.RelOrSame`,
+  `ui.SetOutput`, `ui.SetColorEnabled`, `ui.KeyValue`, `ui.Rule`, and an
+  unused `flagAddOutputs` variable.
+
+### Documentation
+
+- Documented how to install shell completion for each shell, and called out
+  that PowerShell needs `Out-String`:
+  `codenv completion powershell | Out-String | Invoke-Expression`. Piping
+  straight into `Invoke-Expression` fails with `Missing closing '}'`, because
+  PowerShell runs each piped line as its own statement and the script contains
+  multi-line function blocks. Cobra's own help already showed the correct
+  form; the README listed the command without showing how to load it.
+
 ### Known limitations
 
 - **Windows only.** Scoop and Windows `PATH` semantics are the foundation. The
   code compiles elsewhere, but the tool cannot function there.
 - **Requires git.** Scoop is a git checkout and codenv clones its buckets.
 - **Historical version pins are limited by Scoop.** Resolving a version that is
-  not the bucket's current one relies on Scoop's autoupdate, which downloads the
-  release to compute hashes. Releases from before arm64 Windows existed
+  not the bucket's current one relies on Scoop's autoupdate, which downloads
+  the release to compute hashes. Releases from before arm64 Windows existed
   (for example `ripgrep@14.1.1`) cannot be resolved this way.
 - **Versioned Python is published as separate packages.** `python@3.11` is not a
   valid reference; use `versions/python311`. codenv detects this and says so.
@@ -226,5 +216,4 @@ environment resolves to.
 - Linux and macOS releases. `generate dockerfile` emits a **Windows** container
   Dockerfile, since a Linux image cannot run Scoop.
 
-[Unreleased]: https://github.com/Tijani127/codenv/compare/v1.0...HEAD
 [1.0.0]: https://github.com/Tijani127/codenv/releases/tag/v1.0
