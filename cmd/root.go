@@ -135,6 +135,13 @@ func openSession(proj *project.Project, opts sessionOpts) (*session, error) {
 	}
 	sess := &session{Project: proj, Store: st, Engine: eng, Lock: proj.Lock}
 
+	// Register the project so `codenv gc` can find its lockfile when it
+	// decides which store versions are safe to delete. Only non-global
+	// projects need this; the global store is swept against its own lock.
+	if !proj.Global {
+		project.Touch(proj.Dir, string(proj.StoreMode()))
+	}
+
 	if !opts.NoBootstrap {
 		if opts.SyncBuckets {
 			ui.Step("Syncing buckets")

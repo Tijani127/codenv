@@ -13,12 +13,19 @@ type Resolved struct {
 	Values   map[string]string
 	Missing  []string
 	Redacted map[string]bool
+	// Sources records non-environment origins of a value, e.g.
+	// "credential manager" for names loaded from the Windows Credential
+	// Manager instead of the environment.
+	Sources map[string]string
 }
+
+var errCredManUnavailable = fmt.Errorf("the Windows Credential Manager is only available on Windows")
 
 func Resolve(cfg *config.Config, lookup func(string) (string, bool)) (*Resolved, error) {
 	out := &Resolved{
 		Values:   map[string]string{},
 		Redacted: map[string]bool{},
+		Sources:  map[string]string{},
 	}
 	if cfg == nil {
 		return out, nil
@@ -47,6 +54,13 @@ func Resolve(cfg *config.Config, lookup func(string) (string, bool)) (*Resolved,
 		}
 		if value, ok := lookup(name); ok && value != "" {
 			out.Values[name] = value
+			continue
+		}
+		// Nothing in the environment: fall back to the Windows Credential
+		// Manager, but only for names the project actually declared.
+		if value, ok := getCredential(name); ok && value != "" {
+			out.Values[name] = value
+			out.Sources[name] = "credential manager"
 			continue
 		}
 		out.Redacted[name] = true

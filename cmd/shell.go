@@ -3,10 +3,12 @@ package cmd
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Tijani127/codenv/internal/config"
 	"github.com/Tijani127/codenv/internal/envbuild"
+	"github.com/Tijani127/codenv/internal/project"
 	"github.com/Tijani127/codenv/internal/shellrun"
 	"github.com/Tijani127/codenv/internal/ui"
 	"github.com/spf13/cobra"
@@ -109,6 +111,7 @@ var shellCmd = &cobra.Command{
 			return nil
 		}
 
+		reportEnvDrift(sess)
 		if !shellFlags.noBanner {
 			printBanner(sess)
 		}
@@ -124,8 +127,64 @@ var shellCmd = &cobra.Command{
 	},
 }
 
-func runInitHook(env []string, dir, hook string) error {
-	if hook == "" {
+// reportEnvDrift compares this shell's top-level pins against the snapshot
+// left by the previous interactive shell and warns when they differ. It then
+// records the current pins, so the comparison is against this shell next
+// time. Global projects skip the bookkeeping: they resolve on their own.
+func reportEnvDrift(sess *session) {
+	if sess.Project.Global {
+		return
+	}
+	current := make([]string, 0, len(sess.Lock.Top))
+	seen := map[string]bool{}
+	for _, key := range sess.Lock.Top {
+		if pkg, ok := sess.Lock.Resolved[key]; ok && !seen[key] {
+			seen[key] = true
+			current = append(current, pkg.Name+"@"+pkg.Version)
+		}
+	}
+	sort.Strings(current)
+
+	stateDir := sess.Project.StateDir()
+	snap := project.LoadEnvSnapshot(stateDir)
+	if snap != nil {
+		old := make([]string, len(snap.Pins))
+		copy(old, snap.Pins)
+		sort.Strings(old)
+		if strings.Join(old, "\n") != strings.Join(current, "\n") {
+			prev := make(map[string]bool, len(old))
+			for _, pin := range old {
+				prev[pin] = true
+			}
+			now := make(map[string]bool, len(current))
+			for _, pin := range current {
+				now[pin] = true
+			}
+			var added, removed []string
+			for _, pin := range current {
+				if !prev[pin] {
+					added = append(added, pin)
+				}
+			}
+			for _, pin := range old {
+				if !now[pin] {
+					removed = append(removed, pin)
+				}
+			}
+			parts := make([]string, 0, 2)
+			if len(added) > 0 {
+				parts = append(parts, "new: "+strings.Join(added, ", "))
+			}
+			if len(removed) > 0 {
+				parts = append(parts, "gone: "+strings.Join(removed, ", "))
+			}
+			ui.Warn("changed since the last shell: %s - run 'codenv install' if this was not intentional", strings.Join(parts, "; "))
+		}
+	}
+	project.SaveEnvSnapshot(stateDir, current)
+}
+
+func runInitHook(env []string, dir, hook string) error {	if hook == "" {
 		return nil
 	}
 	code, err := shellrun.Script(env, dir, hook, nil, os.Stdin, os.Stdout, os.Stderr)

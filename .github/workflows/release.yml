@@ -85,13 +85,14 @@ jobs:
           Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item codenv.exe (Join-Path $stage 'codenv.exe')
-          Copy-Item LICENSE, README.md -Destination $stage
-          # codenv manages PATH per shell rather than per machine, so there is
-          # no installer and nothing to register.
+          Copy-Item LICENSE, README.md, install.ps1 -Destination $stage
           @'
           # codenv
 
-          This is a portable binary. Put it anywhere on your PATH.
+          Quick install (PowerShell):
+              irm https://github.com/Tijani127/codenv/releases/latest/download/install.ps1 | iex
+
+          Or keep this portable: put codenv.exe anywhere on your PATH.
 
               codenv init          create codenv.json
               codenv add <pkg>     add a package
@@ -163,7 +164,13 @@ jobs:
             echo "| Windows x64 | \`codenv-windows-x64.zip\` |"
             echo "| Windows arm64 | \`codenv-windows-arm64.zip\` |"
             echo
-            echo "No installer: unzip, then run \`codenv\`. It is a single self-contained binary."
+            echo "Install with one command in PowerShell:"
+            echo
+            echo '\`\`\`powershell'
+            echo "irm https://github.com/Tijani127/codenv/releases/latest/download/install.ps1 | iex"
+            echo '\`\`\`'
+            echo
+            echo "Or keep the portable zip: put \`codenv.exe\` anywhere on your PATH."
             echo
             echo "codenv is Windows-only by design: it is backed by Scoop and relies on Windows"
             echo "PATH semantics. It requires PowerShell and git."

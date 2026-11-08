@@ -11,6 +11,19 @@ so a tag that is not listed ships without a codename.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - planned v1.1 Regina
+
+Work in progress. Highlights landing in v1.1:
+
+### Added
+
+- **One-line installer.** `irm https://github.com/Tijani127/codenv/releases/latest/download/install.ps1 | iex` downloads the right build for the machine's architecture, installs to `%LOCALAPPDATA%\Programs\codenv` and adds it to the user `PATH`. Windows PowerShell 5.1 compatible.
+- **`codenv gc [--dry-run] [--force]`** reclaims store space: every installed version no registered project's lockfile pins is deleted, stale index entries are pruned, empty app directories are removed. The store's own Scoop installation, pinned versions and `current` junction targets are always spared.
+- **Windows Credential Manager secret provider.** `codenv secrets set <NAME> [--stdin]` stores a value under `codenv:secret:<NAME>`; a shell falls back to it for declared secrets that are unset in the environment, and `codenv secrets rm --stored` deletes it.
+- **`codenv generate ci`** writes `.github/workflows/codenv.yml` that installs codenv from its releases, caches Scoop buckets and the store keyed on `hashFiles('codenv.lock.json')`, and runs your command on `windows-latest`.
+- **Environment drift notice.** An interactive `codenv shell` compares its top-level pins against the previous shell's snapshot in `.codenv/env.json` and warns in one line when they changed.
+- **`codenv create` grows remote and local templates.** Template sources are builtin → `~/.codenv/templates` (or `CODEENV_TEMPLATES`) → a git repository (`owner/repo`, `github:owner/repo`, or a full URL), recursively copied with `{{PROJECT}}`/`{{TITLE}}`/`{{MODULE}}` substitution; a new `--ref` flag picks a branch or tag.
+
 ## [1.0.0] - 2026-10-06 - Saskatchewan
 
 First stable release. codenv creates isolated, reproducible development

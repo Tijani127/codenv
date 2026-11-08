@@ -86,7 +86,16 @@ so a background `scoop update` cannot change what an existing environment resolv
 
 Requires **Windows**, **PowerShell 5.1 or PowerShell 7**, and **git** (used to clone Scoop and its buckets).
 
-Download the latest release and unzip it, or build from source:
+One command in PowerShell:
+
+```powershell
+irm https://github.com/Tijani127/codenv/releases/latest/download/install.ps1 | iex
+```
+
+The installer picks the right build for your machine's architecture, installs to
+`%LOCALAPPDATA%\Programs\codenv` and adds it to your user `PATH`.
+
+Or download the latest release and unzip it, or build from source:
 
 ```powershell
 git clone https://github.com/Tijani127/codenv.git
@@ -139,6 +148,12 @@ codenv shellenv --compact       # just a single PATH export, for a profile or CI
 
 `codenv create` writes `codenv.json`, a `README.md` and a `.gitignore`, and pins the toolchain each
 template needs. List them with `codenv create templates`.
+
+`create` also accepts your own templates: a directory under `~/.codenv/templates` (override with
+`CODEENV_TEMPLATES`), or a git repository — `codenv create owner/repo`, `codenv create
+github:owner/repo`, or a full `https://`/`git@` URL, cloned at its default branch or at
+`--ref <branch>`. Every file is copied recursively, with `{{PROJECT}}`, `{{TITLE}}` and `{{MODULE}}`
+replaced by the project name, template title and module path.
 
 `codenv.json` and `codenv.lock.json` should both be committed; `.codenv/` should be git-ignored:
 
@@ -225,8 +240,9 @@ Services live in `codenv-services.json` (different from process-compose.yml). Ea
 | `codenv info <pkg>...` | Show a manifest: version, licence, dependencies, binaries |
 | `codenv global <sub>` | `add`, `rm`, `list`, `install`, `update`, `run`, `shellenv`, `pull`, `push`, `path` |
 | `codenv services <sub>` | `up`, `start`, `stop`, `restart`, `ls`, `logs`, `clean` |
-| `codenv secrets <sub>` | `add`, `from`, `list`, `rm`, `download` — declare which variables are secret |
-| `codenv generate <target>` | `dockerfile`, `devcontainer`, `direnv`, `readme` |
+| `codenv secrets <sub>` | `add`, `from`, `list`, `set`, `rm`, `download` — declare and store secrets |
+| `codenv generate <target>` | `dockerfile`, `devcontainer`, `direnv`, `readme`, `ci` |
+| `codenv gc [--dry-run]` | Reclaim store space: delete versions no project pins, prune stale index entries |
 | `codenv import <format>` | `devbox` — convert a `devbox.json` into `codenv.json` |
 | `codenv cache <sub>` | `info`, `clean` |
 | `codenv completion <shell>` | `powershell`, `bash`, `zsh`, `fish` |
@@ -380,6 +396,23 @@ codenv secrets list                       # shows set/unset, never values
 - Values come from the ambient environment, so anything that can set an environment variable can inject one.
   On a shared machine, prefer a per-project `--env-file` over relying on global variables.
 
+### Windows Credential Manager fallback
+
+For values you do not want sitting in a plain environment variable at all,
+`codenv secrets set <NAME>` stores one in the **Windows Credential Manager** under the
+`codenv:secret:<NAME>` target and declares the name:
+
+```powershell
+codenv secrets set API_KEY --stdin          # keep the value out of shell history and the console log
+codenv secrets list                          # the SOURCE column shows "credential manager"
+codenv secrets rm API_KEY --stored           # delete the declaration and the stored value
+```
+
+When a shell or script resolves secrets, a declared name that is not provided by the environment or
+a `from` mapping falls back to the stored value. Nothing sensitive is ever written to the project
+directory or codenv's own config — the value lives only in the Credential Manager, protected by
+your Windows account.
+
 ---
 
 ## Troubleshooting
@@ -415,7 +448,7 @@ points you at `codenv install` instead.
 | Devbox plugins (jsonnet) | not implemented | Plugins describe Nix build setup; Scoop packages are prebuilt and need none. |
 | `devbox generate dockerfile` → Linux image | `codenv generate dockerfile` → **Windows** container image | Scoop cannot run in a Linux container. |
 | `devbox services` (process-compose) | `codenv services` (built-in supervisor) | No external process manager to install on Windows. Same config file shape. |
-| `devbox create <template>` (remote catalogue) | `codenv create <template>` (built-in) | Built-in templates ship with the binary; there is no remote template catalogue. |
+| `devbox create <template>` (remote catalogue) | `codenv create <template|repo>` (builtin + local + any git repo) | Builtin templates ship with the binary, and `codenv create owner/repo` uses any repository as a template — no curated catalogue to trust. |
 | `devbox.json` written by hand | `codenv import devbox` converts one | Package names are mapped to their Scoop equivalents. Packages with no equivalent are reported and left out rather than replaced by a guess. |
 | `devbox add --platform` / `--exclude-platform` | not implemented | Only one platform exists. |
 
@@ -463,6 +496,7 @@ Read by codenv:
 | `CODEENV_SHELL_BIN` | Force the shell `codenv shell` launches (PowerShell path, `bash`, `cmd`, ...) |
 | `CODEENV_SHELL_FORMAT` | Default format for `shellenv` output: `powershell`, `bash`, `sh`, `zsh`, `fish`, `ksh`, `dash` or `cmd` |
 | `CODEENV_POWERSHELL` | PowerShell executable used to run Scoop internally |
+| `CODEENV_TEMPLATES` | Directory of your own project templates for `codenv create` (default `~/.codenv/templates`) |
 | `NO_COLOR`, `CODEENV_FORCE_COLOR` | Colour control |
 
 Set by codenv inside an environment:

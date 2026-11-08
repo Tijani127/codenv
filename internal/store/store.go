@@ -309,6 +309,26 @@ func (s *Store) ensureBuckets(names []string) error {
 	return nil
 }
 
+// CloneRepoDefault clones the default branch of url into dest. Use it when a
+// template repository should be fetched at whatever branch HEAD points to,
+// rather than a caller-known branch.
+func CloneRepoDefault(url, dest string) error {
+	if _, err := exec.LookPath("git"); err != nil {
+		return fmt.Errorf("git is required to clone %s: %w", url, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(dest); err != nil {
+		return err
+	}
+	cmd := exec.Command("git", "clone", "--depth", "1", url, dest)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clone %s: %w\n%s", url, err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 func CloneRepo(url, dest, branch string) error {
 	if _, err := exec.LookPath("git"); err != nil {
 		return fmt.Errorf("git is required to bootstrap codenv: %w", err)

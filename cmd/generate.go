@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Tijani127/codenv/internal/ci"
 	"github.com/Tijani127/codenv/internal/config"
 	"github.com/Tijani127/codenv/internal/project"
 	"github.com/Tijani127/codenv/internal/ui"
@@ -148,6 +149,55 @@ var generateDirenvCmd = &cobra.Command{
 	},
 }
 
+var (
+	flagGenCiRef     string
+	flagGenCiCommand string
+)
+
+var generateCiCmd = &cobra.Command{
+	Use:   "ci",
+	Short: "Generate a GitHub Actions workflow that runs this project on windows-latest",
+	Long: "Generate .github/workflows/codenv.yml: a workflow that installs codenv from its\n" +
+		"releases, prepares this project's environment with Scoop buckets and store\n" +
+		"caches, and runs your command inside it.\n\n" +
+		"Example:\n" +
+		"  codenv generate ci --command run test",
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		proj, err := currentProject(false)
+		if err != nil {
+			return err
+		}
+		command := splitCommand(flagGenCiCommand)
+		body, err := ci.Render(ci.RenderOptions{
+			CodenvRef: flagGenCiRef,
+			Command:   command,
+		})
+		if err != nil {
+			return fail(1, "rendering the workflow: %s", err)
+		}
+		dir := filepath.Join(proj.Dir, ".github", "workflows")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fail(1, "%s", err)
+		}
+		return writeGenerated(filepath.Join(dir, "codenv.yml"), string(body), flagGenForce)
+	},
+}
+
+// splitCommand mirrors shell-style quoting for the --command flag, so
+// `--command "run test"` and `--command run` both land at the right arg list.
+func splitCommand(s string) []string {
+	fields := strings.Fields(s)
+	out := make([]string, 0, len(fields))
+	for _, f := range fields {
+		f = strings.Trim(f, `"`)
+		if f != "" {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 var generateReadmeCmd = &cobra.Command{
 	Use:   "readme <name>",
 	Short: "Generate a README documenting this environment",
@@ -266,7 +316,9 @@ func init() {
 	generateDockerfileCmd.Flags().StringVar(&flagGenImage, "image", "", "container image to use")
 	generateDockerfileCmd.Flags().StringVar(&flagGenCodenvSrc, "codenv-src", "", "path to codenv.exe to copy into the image")
 	generateDevcontainerCmd.Flags().StringVar(&flagGenImage, "image", "", "devcontainer base image")
-	generateCmd.AddCommand(generateDockerfileCmd, generateDevcontainerCmd, generateDirenvCmd, generateReadmeCmd)
+	generateCiCmd.Flags().StringVar(&flagGenCiRef, "codenv-ref", "latest", "codenv release tag to install in CI (default latest)")
+	generateCiCmd.Flags().StringVar(&flagGenCiCommand, "command", "run test", "command list to run inside the environment (quoted)")
+	generateCmd.AddCommand(generateDockerfileCmd, generateDevcontainerCmd, generateDirenvCmd, generateReadmeCmd, generateCiCmd)
 	rootCmd.AddCommand(generateCmd)
 }
 
