@@ -11,9 +11,10 @@ so a tag that is not listed ships without a codename.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - planned v1.1 Regina
+## [1.1.0] - 2026-11-08 - Regina
 
-Work in progress. Highlights landing in v1.1:
+The installer release: codenv gets a one-line installation story, store
+maintenance, secret storage, CI generation, and template growth.
 
 ### Added
 
