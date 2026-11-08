@@ -448,7 +448,7 @@ points you at `codenv install` instead.
 | Devbox plugins (jsonnet) | not implemented | Plugins describe Nix build setup; Scoop packages are prebuilt and need none. |
 | `devbox generate dockerfile` → Linux image | `codenv generate dockerfile` → **Windows** container image | Scoop cannot run in a Linux container. |
 | `devbox services` (process-compose) | `codenv services` (built-in supervisor) | No external process manager to install on Windows. Same config file shape. |
-| `devbox create <template>` (remote catalogue) | `codenv create <template|repo>` (builtin + local + any git repo) | Builtin templates ship with the binary, and `codenv create owner/repo` uses any repository as a template — no curated catalogue to trust. |
+| `devbox create <template>` (remote catalogue) | `codenv create <template/repo>` (builtin + local + any git repo) | Builtin templates ship with the binary, and `codenv create owner/repo` uses any repository as a template — no curated catalogue to trust. |
 | `devbox.json` written by hand | `codenv import devbox` converts one | Package names are mapped to their Scoop equivalents. Packages with no equivalent are reported and left out rather than replaced by a guess. |
 | `devbox add --platform` / `--exclude-platform` | not implemented | Only one platform exists. |
 
