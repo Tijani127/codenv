@@ -184,7 +184,8 @@ func reportEnvDrift(sess *session) {
 	project.SaveEnvSnapshot(stateDir, current)
 }
 
-func runInitHook(env []string, dir, hook string) error {	if hook == "" {
+func runInitHook(env []string, dir, hook string) error {
+	if hook == "" {
 		return nil
 	}
 	code, err := shellrun.Script(env, dir, hook, nil, os.Stdin, os.Stdout, os.Stderr)
