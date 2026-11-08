@@ -101,7 +101,11 @@ jobs:
 
           Requirements: Windows, PowerShell, and git (used to clone Scoop's buckets).
           '@ | Set-Content (Join-Path $stage 'RUN.txt')
-          7z a -tzip "${{ matrix.asset }}" "$stage\*"
+          # Compress-Archive keeps the children of $stage at the archive root,
+          # so an unzip (or the installer's Expand-Archive) yields codenv.exe
+          # directly - 7z would have stored the "stage\" prefix as well.
+          Remove-Item -Force "${{ matrix.asset }}" -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$stage\*" -DestinationPath "${{ matrix.asset }}"
 
       - uses: actions/upload-artifact@v4
         with:

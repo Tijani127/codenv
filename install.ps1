@@ -13,16 +13,28 @@
 #   .\install.ps1 -Arch x64            force an architecture (x64 or arm64)
 #   .\install.ps1 -NoPath              do not touch PATH; print the install directory instead
 #
+# Note on the one-liner: `irm ... | iex` runs this script in the current scope
+# and cannot pass parameters, so the param block deliberately avoids attributes
+# like ValidateSet — validating them would reject the empty defaults. Pass
+# parameters only when running the downloaded script directly:
+#   & ([scriptblock]::Create((irm https://github.com/Tijani127/codenv/releases/latest/download/install.ps1))) -Arch x64
+#
 # Works on Windows PowerShell 5.1 and PowerShell 7+.
 
-[CmdletBinding()]
 param(
-    [ValidateSet('x64', 'arm64')]
     [string]$Arch = '',
     [switch]$NoPath
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Windows PowerShell 5.1 defaults to TLS 1.0/1.2 negotiation tables that GitHub
+# does not always accept; force TLS 1.2 up front.
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+
+if ($Arch -and $Arch -notmatch '^(?i)(x64|arm64)$') {
+    throw "Unsupported architecture: $Arch (expected x64 or arm64)"
+}
 
 # Windows PowerShell 5.1 defaults to TLS 1.0/1.2 negotiation tables that GitHub
 # does not always accept; force TLS 1.2 up front.
@@ -65,9 +77,23 @@ try {
     Remove-Item $tmp -Force -ErrorAction SilentlyContinue
 }
 
-$exe = Join-Path $dest 'codenv.exe'
-if (-not (Test-Path $exe)) {
+$exe = $null
+try {
+    $exe = Get-ChildItem -Path $dest -Recurse -Filter 'codenv.exe' -File |
+        Select-Object -First 1
+} catch { }
+if (-not $exe) {
     throw "The archive did not contain codenv.exe; the release may have changed."
+}
+# If the archive wrapped the files in a folder (some zip tools keep the staging
+# prefix), flatten that single level so $dest is the install root.
+$actualDir = Split-Path $exe.FullName
+if ($actualDir -ne $dest) {
+    Move-Item -Path (Join-Path $actualDir '*') -Destination $dest -Force
+    Remove-Item $actualDir -Recurse -Force
+    $exePath = Join-Path $dest 'codenv.exe'
+} else {
+    $exePath = $exe.FullName
 }
 
 if (-not $NoPath) {
@@ -87,7 +113,8 @@ if (-not $NoPath) {
     }
 }
 
-& $exe version
+$exePath = Join-Path $dest 'codenv.exe'
+& $exePath version
 Write-Host ''
 Write-Host 'codenv is installed. Open a NEW PowerShell window, then:'
 Write-Host ''
