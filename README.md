@@ -6,6 +6,9 @@
 
 **Instant, isolated, reproducible development environments on Windows.**
 
+Docs live at **[codenv.netlify.app](https://codenv.netlify.app)** — guides, the
+full CLI reference, and copy-ready CI recipes.
+
 `codenv` is a Windows reimplementation of [Jetify's devbox](https://github.com/jetify-com/devbox), backed by
 [Scoop](https://scoop.sh) instead of Nix — and with **shims disabled**. You declare your toolchain in
 `codenv.json`, and every machine gets the exact same package versions placed directly on `PATH`, without
