@@ -66,7 +66,10 @@ jobs:
             " -X github.com/Tijani127/codenv/internal/version.Commit=$env:COMMIT" +
             " -X github.com/Tijani127/codenv/internal/version.Date=$env:BUILD_DATE"
           if ($codename) {
-            $ldflags += " -X github.com/Tijani127/codenv/internal/version.Codename=$codename"
+            # Codenames can contain spaces (Fort Quapelle). go's -ldflags
+            # parser only honors quotes at the start of a field, so the whole
+            # -X definition must be quoted, not just the value.
+            $ldflags += ' -X "github.com/Tijani127/codenv/internal/version.Codename=' + $codename + '"'
           }
           go build -trimpath -ldflags $ldflags -o codenv.exe .
 
