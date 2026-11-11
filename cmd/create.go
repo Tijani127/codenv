@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sort"
@@ -225,6 +226,33 @@ func pad(s string, n int) string {
 	return s
 }
 
+// templateScripts parses a template's codenv.json and returns its script
+// names, so `templates` can show what each scaffold ships with. Templates
+// without a codenv.json or without scripts return nil.
+func templateScripts(files map[string][]byte) []string {
+	raw, ok := files["codenv.json"]
+	if !ok {
+		return nil
+	}
+	var parsed struct {
+		Shell struct {
+			Scripts map[string]string `json:"scripts"`
+		} `json:"shell"`
+	}
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return nil
+	}
+	names := make([]string, 0, len(parsed.Shell.Scripts))
+	for n := range parsed.Shell.Scripts {
+		names = append(names, n)
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	sort.Strings(names)
+	return names
+}
+
 var listTemplatesCmd = &cobra.Command{
 	Use:   "templates",
 	Short: "List the available project templates",
@@ -240,6 +268,15 @@ var listTemplatesCmd = &cobra.Command{
 		ui.Println("%-*s  %s", width, "NAME", "DESCRIPTION")
 		for _, t := range templates.List() {
 			ui.Println("%-*s  %s", width, t.Name, ui.Paint(ui.Gray, t.Description))
+		}
+		for _, t := range templates.List() {
+			files, err := templates.Files(t.Name)
+			if err != nil {
+				continue
+			}
+			if scripts := templateScripts(files); len(scripts) > 0 {
+				ui.Detail("%s: %s", t.Name, strings.Join(scripts, ", "))
+			}
 		}
 		if dir, ok := templates.LocalDir(); ok {
 			ui.Println("")
@@ -265,5 +302,5 @@ func init() {
 	createCmd.Flags().BoolVar(&flagCreateNoReadme, "no-readme", false, "skip the README")
 	createCmd.Flags().StringVar(&flagCreateRef, "ref", "", "branch or tag to clone when TEMPLATE is a git repository")
 	createCmd.AddCommand(listTemplatesCmd)
-	rootCmd.AddCommand(createCmd)
+	rootCmd.AddCommand(createCmd, listTemplatesCmd)
 }

@@ -235,7 +235,9 @@ Services live in `codenv-services.json` (different from process-compose.yml). Ea
 | `codenv install` | Install everything in `codenv.json` |
 | `codenv rm <pkg>...` | Remove packages (`--purge` also deletes from the store) |
 | `codenv update` | Update unpinned packages to latest (`--all` re-resolves pins too) |
+| `codenv outdated` | Show packages with a newer bucket version (`--global`, `--missing`, `--no-sync`) |
 | `codenv list` | Show packages, versions and install status |
+| `codenv templates` | List builtin and local templates with their scripts (alias of `create templates`) |
 | `codenv shell [cmd...]` | Interactive shell, or run one command inside the environment |
 | `codenv run <script\|cmd>` | Run a script from `codenv.json`, or any command |
 | `codenv shellenv` | Print shell code that applies the environment; `--compact` emits a single `PATH` export |

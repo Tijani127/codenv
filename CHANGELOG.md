@@ -11,6 +11,22 @@ so a tag that is not listed ships without a codename.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and codenv adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-11-11 - Fort Quapelle
+
+Staying current: codenv shows you what is stale before you update, and
+templates get real discovery with their scripts listed.
+
+### Added
+
+- **`codenv outdated [--global] [--missing] [--no-sync]`** compares every
+  top-level locked package against the latest manifest in its bucket and
+  prints `PACKAGE / CURRENT / LATEST / MOVES WITH`. Pinned packages say they
+  move with `codenv update --all`; unpinned ones with `codenv install`. The
+  command is read-only: nothing is resolved, installed or written.
+- **`codenv templates`** is promoted to a top-level command (still available
+  as `codenv create templates`), and now lists the scripts each builtin
+  template scaffolds, so `codenv create <tpl>` never needs guessing.
+
 ## [1.1.0] - 2026-11-08 - Regina
 
 The installer release: codenv gets a one-line installation story, store
